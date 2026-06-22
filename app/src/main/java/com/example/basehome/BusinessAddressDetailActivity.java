@@ -33,7 +33,6 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
 
     private TextView tvStreet, tvHouse, tvCenter, tvCity;
     private DatabaseReference databaseReference;
-    private String addressId;
     
     private RecyclerView rvSockets, rvReserves;
     private BusinessInfoAdapter socketAdapter, reserveAdapter;
@@ -48,7 +47,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_business_address_detail);
 
-        addressId = getIntent().getStringExtra("addressId");
+        String addressId = getIntent().getStringExtra("addressId");
         if (addressId == null) {
             finish();
             return;
@@ -85,7 +84,10 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
 
         FirebaseDatabase.getInstance().getReference("users").child(uid).child("isAdmin").get()
                 .addOnSuccessListener(snapshot -> {
-                    isAdmin = Boolean.TRUE.equals(snapshot.getValue(Boolean.class));
+                    Boolean adminVal = snapshot.getValue(Boolean.class);
+                    isAdmin = Boolean.TRUE.equals(adminVal);
+                    if (socketAdapter != null) socketAdapter.setAdmin(isAdmin);
+                    if (reserveAdapter != null) reserveAdapter.setAdmin(isAdmin);
                     updateActionButtonsVisibility();
                 });
     }
@@ -94,10 +96,9 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         String currentUid = FirebaseAuth.getInstance().getUid();
         boolean isAuthor = currentBusinessAddress != null && currentUid != null && currentUid.equals(currentBusinessAddress.getUserId());
         
-        if (isAdmin || isAuthor) {
-            btnDelete.setVisibility(View.VISIBLE);
-            btnEdit.setVisibility(View.VISIBLE);
-        }
+        int visibility = (isAdmin || isAuthor) ? View.VISIBLE : View.GONE;
+        btnDelete.setVisibility(visibility);
+        btnEdit.setVisibility(visibility);
     }
 
     private void setupRecyclerViews() {
@@ -199,17 +200,17 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                 .setView(dialogView)
                 .setPositiveButton("Сохранить", (dialog, which) -> {
                     String streetInput = etStreet.getText().toString().trim();
-                    String houseInput = etHouse.getText().toString().trim();
+                    String house = etHouse.getText().toString().trim();
                     String centerInput = etCenter.getText().toString().trim();
                     String city = spinnerCity.getSelectedItem().toString();
 
-                    if (!streetInput.isEmpty() && !houseInput.isEmpty() && !centerInput.isEmpty()) {
+                    if (!streetInput.isEmpty() && !house.isEmpty() && !centerInput.isEmpty()) {
                         String street = capitalize(streetInput);
                         String center = capitalize(centerInput);
 
                         Map<String, Object> updates = new HashMap<>();
                         updates.put("street", street);
-                        updates.put("house", houseInput);
+                        updates.put("house", house);
                         updates.put("centerName", center);
                         updates.put("city", city);
 
@@ -225,13 +226,13 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Удаление адреса")
                 .setMessage("Вы уверены, что хотите полностью удалить этот Юр. адрес?")
-                .setPositiveButton("Удалить", (dialog, which) -> {
+                .setPositiveButton("Удалить", (dialog, which) -> 
                     databaseReference.removeValue()
                             .addOnSuccessListener(aVoid -> {
                                 Toast.makeText(this, "Удалено", Toast.LENGTH_SHORT).show();
                                 finish();
-                            });
-                })
+                            })
+                )
                 .setNegativeButton("Отмена", null)
                 .show();
     }

@@ -45,7 +45,10 @@ class CommentAdapter(
     }
 
     override fun onBindViewHolder(holder: CommentViewHolder, position: Int) {
-        val comment = comments[position]
+        val currentPos = holder.bindingAdapterPosition
+        if (currentPos == RecyclerView.NO_POSITION) return
+        
+        val comment = comments[currentPos]
         
         val uid = comment.authorId
         if (!uid.isNullOrEmpty()) {
@@ -59,7 +62,9 @@ class CommentAdapter(
                             val name = snapshot.getValue(String::class.java)
                             val finalName = if (!name.isNullOrEmpty()) name else comment.authorEmail
                             nameCache[uid] = finalName
-                            if (holder.adapterPosition == position) {
+                            
+                            val updatedPos = holder.bindingAdapterPosition
+                            if (updatedPos != RecyclerView.NO_POSITION && comments[updatedPos].authorId == uid) {
                                 holder.tvAuthor.text = finalName
                             }
                         }
@@ -77,13 +82,18 @@ class CommentAdapter(
         holder.btnPlus.text = "+ ${comment.plusCount}"
         holder.btnMinus.text = "- ${comment.minusCount}"
 
-        // Show edit/delete if user is author OR admin
         val isAuthor = currentUserId != null && currentUserId == comment.authorId
         holder.btnDelete.visibility = if (isAdmin || isAuthor) View.VISIBLE else View.GONE
         holder.btnEdit.visibility = if (isAuthor) View.VISIBLE else View.GONE
 
-        holder.btnDelete.setOnClickListener { onDeleteClick(comment) }
-        holder.btnEdit.setOnClickListener { onEditClick(comment) }
+        holder.btnDelete.setOnClickListener { 
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onDeleteClick(comments[pos]) 
+        }
+        holder.btnEdit.setOnClickListener { 
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onEditClick(comments[pos]) 
+        }
 
         val density = holder.itemView.context.resources.displayMetrics.density
         val marginStart = if (!comment.parentId.isNullOrEmpty()) (24 * density).toInt() else 0
@@ -98,9 +108,18 @@ class CommentAdapter(
             holder.rootLayout.setBackgroundResource(android.R.color.white)
         }
 
-        holder.btnPlus.setOnClickListener { onReactionClick(comment, true) }
-        holder.btnMinus.setOnClickListener { onReactionClick(comment, false) }
-        holder.btnReply.setOnClickListener { onReplyClick(comment) }
+        holder.btnPlus.setOnClickListener { 
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onReactionClick(comments[pos], true) 
+        }
+        holder.btnMinus.setOnClickListener { 
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onReactionClick(comments[pos], false) 
+        }
+        holder.btnReply.setOnClickListener { 
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onReplyClick(comments[pos]) 
+        }
     }
 
     override fun getItemCount() = comments.size

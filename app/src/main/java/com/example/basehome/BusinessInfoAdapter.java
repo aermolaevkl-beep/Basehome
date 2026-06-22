@@ -15,7 +15,7 @@ public class BusinessInfoAdapter extends RecyclerView.Adapter<BusinessInfoAdapte
     private final List<BusinessInfoEntry> entries;
     private final OnDeleteClickListener deleteListener;
     private final OnEditClickListener editListener;
-    private final boolean isAdmin;
+    private boolean isAdmin;
     private final String currentUserId;
 
     public interface OnDeleteClickListener {
@@ -32,6 +32,11 @@ public class BusinessInfoAdapter extends RecyclerView.Adapter<BusinessInfoAdapte
         this.deleteListener = deleteListener;
         this.editListener = editListener;
         this.currentUserId = FirebaseAuth.getInstance().getUid();
+    }
+
+    public void setAdmin(boolean admin) {
+        this.isAdmin = admin;
+        notifyDataSetChanged();
     }
 
     @NonNull
