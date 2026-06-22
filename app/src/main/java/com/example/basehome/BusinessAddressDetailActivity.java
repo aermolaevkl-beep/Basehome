@@ -85,7 +85,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
 
         FirebaseDatabase.getInstance().getReference("users").child(uid).child("isAdmin").get()
                 .addOnSuccessListener(snapshot -> {
-                    isAdmin = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
+                    isAdmin = Boolean.TRUE.equals(snapshot.getValue(Boolean.class));
                     updateActionButtonsVisibility();
                 });
     }
@@ -122,7 +122,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                 if (currentBusinessAddress != null) {
                     tvCity.setText(currentBusinessAddress.getCity() != null ? currentBusinessAddress.getCity() : "Могилев");
                     tvStreet.setText(currentBusinessAddress.getStreet());
-                    tvHouse.setText("дом " + currentBusinessAddress.getHouse());
+                    tvHouse.setText(getString(R.string.house_label, currentBusinessAddress.getHouse()));
                     tvCenter.setText(currentBusinessAddress.getCenterName());
                     updateActionButtonsVisibility();
                 }
@@ -199,22 +199,22 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                 .setView(dialogView)
                 .setPositiveButton("Сохранить", (dialog, which) -> {
                     String streetInput = etStreet.getText().toString().trim();
-                    String house = etHouse.getText().toString().trim();
+                    String houseInput = etHouse.getText().toString().trim();
                     String centerInput = etCenter.getText().toString().trim();
                     String city = spinnerCity.getSelectedItem().toString();
 
-                    if (!streetInput.isEmpty() && !house.isEmpty() && !centerInput.isEmpty()) {
+                    if (!streetInput.isEmpty() && !houseInput.isEmpty() && !centerInput.isEmpty()) {
                         String street = capitalize(streetInput);
                         String center = capitalize(centerInput);
 
                         Map<String, Object> updates = new HashMap<>();
                         updates.put("street", street);
-                        updates.put("house", house);
+                        updates.put("house", houseInput);
                         updates.put("centerName", center);
                         updates.put("city", city);
 
                         databaseReference.updateChildren(updates)
-                                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Обновлено", Toast.LENGTH_SHORT).show());
+                                .addOnSuccessListener(aVoid -> Toast.makeText(BusinessAddressDetailActivity.this, "Обновлено", Toast.LENGTH_SHORT).show());
                     }
                 })
                 .setNegativeButton("Отмена", null)
@@ -284,7 +284,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
             .setMessage("Удалить эту запись?")
             .setPositiveButton("Да", (dialog, which) -> 
                 databaseReference.child(nodeKey).child(entryId).removeValue()
-                    .addOnSuccessListener(aVoid -> Toast.makeText(this, "Удалено", Toast.LENGTH_SHORT).show())
+                    .addOnSuccessListener(aVoid -> Toast.makeText(BusinessAddressDetailActivity.this, "Удалено", Toast.LENGTH_SHORT).show())
             )
             .setNegativeButton("Нет", null)
             .show();
