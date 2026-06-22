@@ -122,7 +122,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                 if (currentBusinessAddress != null) {
                     tvCity.setText(currentBusinessAddress.getCity() != null ? currentBusinessAddress.getCity() : "Могилев");
                     tvStreet.setText(currentBusinessAddress.getStreet());
-                    tvHouse.setText(getString(R.string.house_label, currentBusinessAddress.getHouse()));
+                    tvHouse.setText("дом " + currentBusinessAddress.getHouse());
                     tvCenter.setText(currentBusinessAddress.getCenterName());
                     updateActionButtonsVisibility();
                 }
