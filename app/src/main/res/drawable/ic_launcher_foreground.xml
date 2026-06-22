@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Группа для центрирования -->
+    <group
+        android:translateX="0"
+        android:translateY="0">
+
+        <!-- Основная форма дома (Белая) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,22 L20,48 L20,52 L28,52 L28,86 L80,86 L80,52 L88,52 L88,48 Z" />
+
+        <!-- Стилизованная буква 'B' (Вырез цветом фона) -->
+        <!-- Рисуем 'B' как два полукруга и вертикальную линию -->
+        <path
+            android:fillColor="#303F9F"
+            android:pathData="M44,55 L44,79 L56,79 C60,79 63,77 63,73 L63,72 C63,69 61,67.5 58,67 L58,67 C60,66.5 62,65 62,62 L62,61 C62,57 59,55 55,55 Z M49,59 L54,59 C56,59 57,60 57,61.5 L57,62 C57,63.5 56,64.5 54,64.5 L49,64.5 Z M49,69 L55,69 C57,69 58,70 58,72 L58,73 C58,75 57,75.5 55,75.5 L49,75.5 Z" />
+
+        <!-- Декоративное окно или акцент (опционально, но сделаем чище) -->
+    </group>
+</vector>

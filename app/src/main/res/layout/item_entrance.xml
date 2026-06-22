@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="6dp"
+    app:cardElevation="1dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="#F0F0F0">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvEntranceNumber"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Подъезд №1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#333333" />
+
+            <ImageButton
+                android:id="@+id/btnEditEntrance"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_edit"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                app:tint="#2196F3"
+                android:scaleType="centerInside" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvIntercomCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Код домофона: 1234"
+            android:textSize="13sp"
+            android:textColor="#D32F2F"
+            android:textStyle="bold"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tvCrossFloor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Этаж кросса: 5"
+            android:textSize="13sp"
+            android:textColor="#555555"
+            android:layout_marginTop="1dp" />
+
+        <TextView
+            android:id="@+id/tvBasementKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ключ от подвала: У диспетчера"
+            android:textSize="13sp"
+            android:textColor="#555555"
+            android:layout_marginTop="1dp" />
+
+        <TextView
+            android:id="@+id/tvLastEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Изм: Иван (24.05.2024)"
+            android:textSize="9sp"
+            android:textColor="#AAAAAA"
+            android:layout_marginTop="6dp"
+            android:gravity="end" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "926688909910",
+    "project_id": "base-home-7c75a",
+    "storage_bucket": "base-home-7c75a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926688909910:android:d6fc6bf1768bd761bbb9f7",
+        "android_client_info": {
+          "package_name": "com.example.basehome"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpm1qE05r9LKtbG9uUXhROd6cSeVVV6l0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <EditText
+        android:id="@+id/etSimpleInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Введите данные..."
+        android:padding="12dp"
+        android:background="@android:drawable/editbox_background"
+        android:inputType="textMultiLine"
+        android:minLines="1"
+        android:maxLines="4" />
+
+</LinearLayout>

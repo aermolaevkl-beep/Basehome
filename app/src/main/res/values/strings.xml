@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Base home</string>
+    <string name="login">Войти</string>
+    <string name="logout_format">Выйти (%1$s)</string>
+    <string name="please_login">Сначала войдите в систему</string>
+    <string name="logged_out">Вы вышли из системы</string>
+    <string name="load_error">Ошибка загрузки: %1$s</string>
+    <string name="house_format">Дом: %1$s</string>
+    <string name="entrance_format">Подъезд: %1$s</string>
+    <string name="intercom_format">Код домофона: %1$s</string>
+    <string name="fill_fields">Заполните все поля</string>
+    <string name="fill_address_fields">Заполните улицу, дом и подъезд</string>
+    <string name="not_authorized">Вы не авторизованы</string>
+    <string name="address_saved">Адрес сохранен!</string>
+    <string name="error_format">Ошибка: %1$s</string>
+    <string name="login_success">Вход выполнен!</string>
+    <string name="address_load_error">Ошибка загрузки адреса</string>
+    <string name="street_format">Улица: %1$s</string>
+    <string name="comment_format">Комментарий: %1$s</string>
+    <string name="enter_comment">Введите комментарий</string>
+    <string name="comment_added">Комментарий добавлен!</string>
+    <string name="new_comment_format">\n[%1$s]: %2$s</string>
+    <string name="no_results">Адреса не найдены</string>
+    <string name="created_by_format">Создал: %1$s</string>
+    <string name="anonymous">Аноним</string>
+    <string name="house_label">дом %1$s</string>
+    <string name="plus_count">+ %1$d</string>
+    <string name="minus_count">- %1$d</string>
+</resources>
