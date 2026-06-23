@@ -7,7 +7,7 @@
     android:gravity="center_vertical"
     android:padding="8dp"
     android:layout_marginBottom="4dp"
-    android:background="@android:color/white">
+    android:background="?attr/colorSurface">
 
     <TextView
         android:id="@+id/tvInfoText"
@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textSize="14sp"
-        android:textColor="#333333" />
+        android:textColor="?android:attr/textColorPrimary" />
 
     <ImageButton
         android:id="@+id/btnEditInfo"

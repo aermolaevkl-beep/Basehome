@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="32dp">
+    android:padding="32dp"
+    android:background="?android:attr/windowBackground">
 
     <EditText
         android:id="@+id/etLoginEmail"
@@ -12,6 +13,8 @@
         android:layout_height="wrap_content"
         android:hint="Логин (email)"
         android:padding="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textColorHint="?android:attr/textColorSecondary"
         android:background="@android:drawable/editbox_background"
         android:layout_marginBottom="16dp"
         android:inputType="textEmailAddress" />
@@ -22,6 +25,8 @@
         android:layout_height="wrap_content"
         android:hint="Пароль"
         android:padding="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textColorHint="?android:attr/textColorSecondary"
         android:background="@android:drawable/editbox_background"
         android:layout_marginBottom="16dp"
         android:inputType="textPassword" />

@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F5"
+    android:background="?android:attr/windowBackground"
     android:fitsSystemWindows="true">
 
     <androidx.core.widget.NestedScrollView
@@ -26,14 +26,14 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#DDDDDD"
+                app:strokeColor="?attr/colorOutlineVariant"
                 android:layout_marginBottom="8dp">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:background="@android:color/white">
+                    android:background="?attr/selectableItemBackground">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -46,7 +46,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="12sp"
-                            android:textColor="#757575"
+                            android:textColor="?android:attr/textColorSecondary"
                             android:textStyle="normal"
                             android:layout_marginBottom="2dp" />
 
@@ -56,14 +56,14 @@
                             android:layout_height="wrap_content"
                             android:textSize="22sp"
                             android:textStyle="bold"
-                            android:textColor="#333333" />
+                            android:textColor="?android:attr/textColorPrimary" />
 
                         <TextView
                             android:id="@+id/tvHouse"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="18sp"
-                            android:textColor="#555555"
+                            android:textColor="?android:attr/textColorSecondary"
                             android:layout_marginTop="2dp" />
 
                         <TextView
@@ -71,7 +71,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="10sp"
-                            android:textColor="#999999"
+                            android:textColor="?android:attr/textColorSecondary"
                             android:layout_marginTop="6dp" />
                     </LinearLayout>
 
@@ -121,7 +121,7 @@
                     android:text="Подъезды"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#333333" />
+                    android:textColor="?android:attr/textColorPrimary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAddEntrance"
@@ -136,9 +136,7 @@
                     app:cornerRadius="8dp"
                     android:paddingStart="12dp"
                     android:paddingEnd="16dp"
-                    app:elevation="6dp"
-                    app:strokeColor="#FFFFFF"
-                    app:strokeWidth="1dp" />
+                    app:elevation="6dp" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -154,7 +152,7 @@
                 android:text="Комментарии"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="#333333"
+                android:textColor="?android:attr/textColorPrimary"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="4dp" />
 
@@ -173,7 +171,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="12dp"
-        android:background="@android:color/white"
+        android:background="?attr/colorSurface"
         android:elevation="8dp">
 
         <TextView
@@ -198,6 +196,8 @@
                 android:layout_weight="1"
                 android:hint="Написать комментарий..."
                 android:padding="10dp"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textColorHint="?android:attr/textColorSecondary"
                 android:background="@android:drawable/editbox_background"
                 android:maxLines="3"
                 android:inputType="textMultiLine" />

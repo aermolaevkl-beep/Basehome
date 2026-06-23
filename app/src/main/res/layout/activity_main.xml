@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:padding="16dp"
     android:fitsSystemWindows="true"
-    android:background="#F5F5F5">
+    android:background="?android:attr/windowBackground">
 
     <!-- Header Section with Profile and Logout -->
     <RelativeLayout
@@ -56,7 +56,7 @@
         android:text="Выберите раздел:"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#333333"
+        android:textColor="?android:attr/textColorPrimary"
         android:layout_marginBottom="24dp" />
 
     <Button
