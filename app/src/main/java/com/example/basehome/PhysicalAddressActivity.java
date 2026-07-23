@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -32,12 +33,12 @@ public class PhysicalAddressActivity extends AppCompatActivity {
     private EditText etSearch;
     private AddressAdapter adapter;
     private RecyclerView rvAddresses;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private TextView tvNoResults, tvSectionTitle;
     private final List<Address> allAddresses = new ArrayList<>();
-    private final List<Address> filteredAddresses = new ArrayList<>();
     private DatabaseReference databaseReference;
     private Button btnAddAddress, btnViewAll;
-    private int currentLimit = 5;
+    private int currentLimit = 10;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +48,7 @@ public class PhysicalAddressActivity extends AppCompatActivity {
         databaseReference = FirebaseDatabase.getInstance().getReference("addresses");
 
         rvAddresses = findViewById(R.id.rvAddresses);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshPhysical);
         etSearch = findViewById(R.id.etSearch);
         tvNoResults = findViewById(R.id.tvNoResults);
         tvSectionTitle = findViewById(R.id.tvSectionTitle);
@@ -56,7 +58,7 @@ public class PhysicalAddressActivity extends AppCompatActivity {
 
         rvAddresses.setLayoutManager(new LinearLayoutManager(this));
         
-        adapter = new AddressAdapter(filteredAddresses, 
+        adapter = new AddressAdapter(new ArrayList<>(), 
             address -> {
                 Intent intent = new Intent(PhysicalAddressActivity.this, AddressDetailActivity.class);
                 intent.putExtra("addressId", address.getId());
@@ -67,9 +69,18 @@ public class PhysicalAddressActivity extends AppCompatActivity {
         
         rvAddresses.setAdapter(adapter);
 
-        btnBack.setOnClickListener(v -> finish());
+        if (btnBack != null) btnBack.setOnClickListener(v -> finish());
+        
         checkAdminStatus();
         loadAddresses();
+
+        // Настройка Pull-to-Refresh
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            // Поскольку у нас ValueEventListener, данные и так обновляются в реальном времени.
+            // Но мы имитируем обновление для удобства пользователя.
+            loadAddresses();
+            swipeRefreshLayout.setRefreshing(false);
+        });
 
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -81,7 +92,7 @@ public class PhysicalAddressActivity extends AppCompatActivity {
 
         btnAddAddress.setOnClickListener(v -> startActivity(new Intent(PhysicalAddressActivity.this, AddAddressActivity.class)));
         btnViewAll.setOnClickListener(v -> {
-            currentLimit += 5;
+            currentLimit += 10;
             filterAddresses(etSearch.getText().toString());
         });
     }
@@ -91,8 +102,8 @@ public class PhysicalAddressActivity extends AppCompatActivity {
         if (uid == null) return;
         FirebaseDatabase.getInstance().getReference("users").child(uid).child("isAdmin").get()
                 .addOnSuccessListener(snapshot -> {
-                    boolean isAdmin = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
-                    adapter.setAdmin(isAdmin);
+                    Boolean isAdmin = snapshot.getValue(Boolean.class);
+                    adapter.setAdmin(Boolean.TRUE.equals(isAdmin));
                 });
     }
 
@@ -127,30 +138,44 @@ public class PhysicalAddressActivity extends AppCompatActivity {
                 filterAddresses(etSearch.getText().toString());
             }
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(PhysicalAddressActivity.this, "Ошибка БД", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
     private void filterAddresses(String query) {
-        filteredAddresses.clear();
+        List<Address> filtered = new ArrayList<>();
         String lowerQuery = query.toLowerCase().trim();
+        
         if (lowerQuery.isEmpty()) {
             int limit = Math.min(currentLimit, allAddresses.size());
-            for (int i = 0; i < limit; i++) filteredAddresses.add(allAddresses.get(i));
-            tvSectionTitle.setText("Последние " + limit + " адресов:");
+            for (int i = 0; i < limit; i++) {
+                filtered.add(allAddresses.get(i));
+            }
+            tvSectionTitle.setText(allAddresses.isEmpty() ? "" : "Последние записи:");
             btnViewAll.setVisibility(allAddresses.size() > currentLimit ? View.VISIBLE : View.GONE);
-            rvAddresses.setVisibility(filteredAddresses.isEmpty() ? View.GONE : View.VISIBLE);
         } else {
             btnViewAll.setVisibility(View.GONE);
             tvSectionTitle.setText("Результаты поиска:");
             for (Address address : allAddresses) {
-                if (address.getStreet().toLowerCase().contains(lowerQuery) || address.getHouse().toLowerCase().contains(lowerQuery)) {
-                    filteredAddresses.add(address);
+                String street = address.getStreet() != null ? address.getStreet().toLowerCase() : "";
+                String house = address.getHouse() != null ? address.getHouse().toLowerCase() : "";
+                if (street.contains(lowerQuery) || house.contains(lowerQuery)) {
+                    filtered.add(address);
                 }
             }
-            rvAddresses.setVisibility(filteredAddresses.isEmpty() ? View.GONE : View.VISIBLE);
-            tvNoResults.setVisibility(filteredAddresses.isEmpty() ? View.VISIBLE : View.GONE);
         }
-        adapter.notifyDataSetChanged();
+        
+        boolean isEmpty = filtered.isEmpty();
+        tvNoResults.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        if (isEmpty) {
+            tvNoResults.setText(lowerQuery.isEmpty() ? "Адресов еще нет" : "Ничего не найдено");
+            rvAddresses.setVisibility(View.GONE);
+        } else {
+            rvAddresses.setVisibility(View.VISIBLE);
+        }
+        
+        adapter.updateList(filtered);
     }
 }

@@ -57,16 +57,23 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        android:text="Последние 5 адресов:"
+        android:text="Последние адреса:"
         android:textStyle="bold"
         android:textColor="?android:attr/textColorSecondary" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvAddresses"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshPhysical"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="8dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvAddresses"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <TextView
         android:id="@+id/tvNoResults"

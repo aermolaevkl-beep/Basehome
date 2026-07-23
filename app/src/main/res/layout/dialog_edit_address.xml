@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Город"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginBottom="4dp"
+        android:layout_marginStart="4dp"/>
+
+    <Spinner
+        android:id="@+id/spinnerCityEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:padding="8dp"
+        android:background="@android:drawable/btn_dropdown" />
+
+    <EditText
+        android:id="@+id/etStreetEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Улица"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:background="@android:drawable/editbox_background"
+        android:inputType="textCapSentences" />
+
+    <EditText
+        android:id="@+id/etHouseEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Номер дома"
+        android:padding="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:background="@android:drawable/editbox_background"
+        android:inputType="textCapSentences" />
+
+</LinearLayout>

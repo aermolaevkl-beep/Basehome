@@ -6,12 +6,14 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
+import java.util.ArrayList;
 import java.util.List;
 
 public class BusinessAddressAdapter extends RecyclerView.Adapter<BusinessAddressAdapter.ViewHolder> {
 
-    private final List<BusinessAddress> addresses;
+    private List<BusinessAddress> addresses;
     private final OnBusinessAddressClickListener listener;
     private final OnDeleteClickListener deleteListener;
     private boolean isAdmin = false;
@@ -25,7 +27,7 @@ public class BusinessAddressAdapter extends RecyclerView.Adapter<BusinessAddress
     }
 
     public BusinessAddressAdapter(List<BusinessAddress> addresses, OnBusinessAddressClickListener listener, OnDeleteClickListener deleteListener) {
-        this.addresses = addresses;
+        this.addresses = new ArrayList<>(addresses);
         this.listener = listener;
         this.deleteListener = deleteListener;
     }
@@ -33,6 +35,32 @@ public class BusinessAddressAdapter extends RecyclerView.Adapter<BusinessAddress
     public void setAdmin(boolean admin) {
         this.isAdmin = admin;
         notifyDataSetChanged();
+    }
+
+    public void updateList(List<BusinessAddress> newAddresses) {
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return addresses.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newAddresses.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                return addresses.get(oldItemPosition).getId().equals(newAddresses.get(newItemPosition).getId());
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return addresses.get(oldItemPosition).equals(newAddresses.get(newItemPosition));
+            }
+        });
+        this.addresses = new ArrayList<>(newAddresses);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull
@@ -48,8 +76,12 @@ public class BusinessAddressAdapter extends RecyclerView.Adapter<BusinessAddress
         BusinessAddress address = addresses.get(position);
         holder.tvCity.setText(address.getCity() != null ? address.getCity() : "Могилев");
         holder.tvStreet.setText(address.getStreet());
-        holder.tvHouse.setText("дом " + address.getHouse());
+        
+        // В карточке теперь есть бейдж "ДОМ", поэтому ставим только номер
+        holder.tvHouse.setText(address.getHouse());
+        
         holder.tvCenterName.setText(address.getCenterName());
+        holder.tvCenterName.setVisibility(address.getCenterName() != null && !address.getCenterName().isEmpty() ? View.VISIBLE : View.GONE);
 
         holder.btnDelete.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
 

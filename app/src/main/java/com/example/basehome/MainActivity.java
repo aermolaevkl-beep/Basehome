@@ -1,23 +1,33 @@
 package com.example.basehome;
 
 import android.content.Intent;
-import android.net.Uri;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
@@ -25,6 +35,10 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseUser currentUser;
     private FirebaseRemoteConfig remoteConfig;
     private UpdateManager updateManager;
+
+    private View vConnectionIndicator;
+    private TextView tvConnectionStatus;
+    private DatabaseReference userStatusRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,108 +57,111 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        ImageButton btnLogout = findViewById(R.id.btnLogout);
-        Button btnProfile = findViewById(R.id.btnProfile);
-        Button btnPhysicalSection = findViewById(R.id.btnPhysicalSection);
-        Button btnBusinessSection = findViewById(R.id.btnBusinessSection);
+        vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
+        tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
+        
+        GradientDrawable shape = new GradientDrawable();
+        shape.setShape(GradientDrawable.OVAL);
+        vConnectionIndicator.setBackground(shape);
 
-        updateManager = new UpdateManager(this);
-        setupRemoteConfig();
-        checkUpdate();
-        updateUI(btnProfile);
-
-        btnLogout.setOnClickListener(v -> {
+        findViewById(R.id.btnLogout).setOnClickListener(v -> {
+            if (userStatusRef != null) userStatusRef.child("isOnline").setValue(false);
             auth.signOut();
-            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
         });
 
-        btnProfile.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ProfileActivity.class)));
-        btnPhysicalSection.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, PhysicalAddressActivity.class)));
-        btnBusinessSection.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, BusinessAddressActivity.class)));
+        findViewById(R.id.btnProfile).setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
+        findViewById(R.id.btnPhysicalSection).setOnClickListener(v -> startActivity(new Intent(this, PhysicalAddressActivity.class)));
+        findViewById(R.id.btnBusinessSection).setOnClickListener(v -> startActivity(new Intent(this, BusinessAddressActivity.class)));
+        findViewById(R.id.btnDatabase).setOnClickListener(v -> startActivity(new Intent(this, GoogleDatabaseActivity.class)));
         
+        updateManager = new UpdateManager(this);
+        setupRemoteConfig();
+        checkUpdate();
+        updateUI(findViewById(R.id.btnProfile));
+        observeConnectionStatus();
+        setupPresence(); 
+        calculateGlobalRanks(); 
         syncUser();
     }
 
-    private void setupRemoteConfig() {
-        remoteConfig = FirebaseRemoteConfig.getInstance();
-        FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
-                .setMinimumFetchIntervalInSeconds(0) 
-                .build();
-        remoteConfig.setConfigSettingsAsync(configSettings);
-
-        Map<String, Object> defaultValues = new HashMap<>();
-        defaultValues.put("min_version_code", "1");
-        defaultValues.put("apk_download_url", "");
-        defaultValues.put("force_update", "false");
-        defaultValues.put("latest_version_name", "1.0");
-        remoteConfig.setDefaultsAsync(defaultValues);
-    }
-
-    private void checkUpdate() {
-        remoteConfig.fetchAndActivate().addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                String minVersionStr = remoteConfig.getString("min_version_code");
-                String updateUrl = remoteConfig.getString("apk_download_url");
-                String forceUpdateStr = remoteConfig.getString("force_update");
-                String latestName = remoteConfig.getString("latest_version_name");
-
-                int currentVersion = BuildConfig.VERSION_CODE;
-                try {
-                    String digitsOnly = minVersionStr.replaceAll("[^0-9]", "");
-                    if (!digitsOnly.isEmpty()) {
-                        int minVersion = Integer.parseInt(digitsOnly);
-                        boolean isForce = forceUpdateStr.equalsIgnoreCase("true");
-
-                        if (minVersion > currentVersion && !updateUrl.isEmpty()) {
-                            showUpdateDialog(updateUrl, isForce, latestName);
-                        }
+    private void calculateGlobalRanks() {
+        FirebaseDatabase.getInstance().getReference("addresses").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Map<String, Integer> counts = new HashMap<>();
+                for (DataSnapshot item : snapshot.getChildren()) {
+                    String uid = item.child("userId").getValue(String.class);
+                    if (uid != null && !uid.isEmpty()) {
+                        counts.put(uid, counts.getOrDefault(uid, 0) + 1);
                     }
-                } catch (Exception ignored) {}
+                }
+                List<Map.Entry<String, Integer>> list = new ArrayList<>(counts.entrySet());
+                list.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+                
+                List<String> top3 = new ArrayList<>();
+                for (int i = 0; i < Math.min(3, list.size()); i++) {
+                    top3.add(list.get(i).getKey());
+                }
+                UserRank.Companion.setTop3UserIds(top3);
             }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
         });
     }
 
-    private void showUpdateDialog(String url, boolean isForce, String versionName) {
-        String cleanName = "новая";
-        if (versionName != null && !versionName.isEmpty()) {
-            String firstLine = versionName.split("\n")[0].trim();
-            cleanName = firstLine.replace("BaseHome:", "").replace("Value:", "").trim();
-            if (cleanName.length() > 10) cleanName = "1.1"; 
-        }
+    private void setupPresence() {
+        if (currentUser == null) return;
+        userStatusRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid());
+        
+        DatabaseReference connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        connectedRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean connected = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
+                if (connected) {
+                    userStatusRef.child("isOnline").setValue(true);
+                    userStatusRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP);
+                    userStatusRef.child("isOnline").onDisconnect().setValue(false);
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("Доступна версия " + cleanName)
-                .setMessage("Пожалуйста, обновите приложение для продолжения работы.")
-                .setPositiveButton("Обновить", (dialog, which) -> {
-                    if (url != null && !url.trim().isEmpty()) {
-                        updateManager.downloadAndInstall(url.trim());
-                    } else {
-                        Toast.makeText(this, "Ссылка на обновление пуста", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-        if (isForce) {
-            builder.setCancelable(false);
-        } else {
-            builder.setNegativeButton("Позже", null);
-        }
-
-        builder.show();
+    private void observeConnectionStatus() {
+        DatabaseReference connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        connectedRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean connected = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
+                if (connected) {
+                    ((GradientDrawable)vConnectionIndicator.getBackground()).setColor(
+                            ContextCompat.getColor(MainActivity.this, android.R.color.holo_green_light));
+                    tvConnectionStatus.setText("Онлайн");
+                } else {
+                    ((GradientDrawable)vConnectionIndicator.getBackground()).setColor(
+                            ContextCompat.getColor(MainActivity.this, android.R.color.holo_red_light));
+                    tvConnectionStatus.setText("Офлайн");
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
     }
 
     private void syncUser() {
         if (currentUser != null) {
-            FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid())
-                .child("email").setValue(currentUser.getEmail());
+            DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid());
+            userRef.child("email").setValue(currentUser.getEmail());
+            userRef.child("appVersion").setValue(BuildConfig.VERSION_NAME);
         }
     }
 
     private void updateUI(Button btnProfile) {
         if (currentUser != null) {
-            btnProfile.setVisibility(View.VISIBLE);
             FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid()).child("isAdmin")
                 .get().addOnSuccessListener(snapshot -> {
                     Boolean isAdmin = snapshot.getValue(Boolean.class);
@@ -153,13 +170,50 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void setupRemoteConfig() {
+        remoteConfig = FirebaseRemoteConfig.getInstance();
+        FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
+                .setMinimumFetchIntervalInSeconds(0).build();
+        remoteConfig.setConfigSettingsAsync(configSettings);
+        Map<String, Object> defaults = new HashMap<>();
+        defaults.put("min_version_code", "1");
+        defaults.put("apk_download_url", "");
+        defaults.put("force_update", "false");
+        defaults.put("latest_version_name", "1.0");
+        remoteConfig.setDefaultsAsync(defaults);
+    }
+
+    private void checkUpdate() {
+        remoteConfig.fetchAndActivate().addOnCompleteListener(this, task -> {
+            if (task.isSuccessful()) {
+                String minVersionStr = remoteConfig.getString("min_version_code");
+                String updateUrl = remoteConfig.getString("apk_download_url");
+                int currentVersion = BuildConfig.VERSION_CODE;
+                try {
+                    int minVersion = Integer.parseInt(minVersionStr.replaceAll("[^0-9]", ""));
+                    if (minVersion > currentVersion && !updateUrl.isEmpty()) {
+                        showUpdateDialog(updateUrl, remoteConfig.getBoolean("force_update"), remoteConfig.getString("latest_version_name"));
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void showUpdateDialog(String url, boolean isForce, String versionName) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Доступна версия " + versionName)
+                .setMessage("Пожалуйста, обновите приложение.")
+                .setPositiveButton("Обновить", (d, w) -> updateManager.downloadAndInstall(url));
+        if (isForce) builder.setCancelable(false);
+        else builder.setNegativeButton("Позже", null);
+        builder.show();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
+        if (auth.getCurrentUser() != null && userStatusRef != null) {
+            userStatusRef.child("isOnline").setValue(true);
         }
     }
 }

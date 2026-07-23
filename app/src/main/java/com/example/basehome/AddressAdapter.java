@@ -6,12 +6,15 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHolder> {
 
-    private final List<Address> addresses;
+    private List<Address> addresses;
     private final OnAddressClickListener listener;
     private final OnDeleteClickListener deleteListener;
     private boolean isAdmin = false;
@@ -25,7 +28,7 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
     }
 
     public AddressAdapter(List<Address> addresses, OnAddressClickListener listener, OnDeleteClickListener deleteListener) {
-        this.addresses = addresses;
+        this.addresses = new ArrayList<>(addresses);
         this.listener = listener;
         this.deleteListener = deleteListener;
     }
@@ -33,6 +36,37 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
     public void setAdmin(boolean admin) {
         this.isAdmin = admin;
         notifyDataSetChanged();
+    }
+
+    public void updateList(List<Address> newAddresses) {
+        final List<Address> oldList = this.addresses;
+        final List<Address> newList = new ArrayList<>(newAddresses);
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return oldList.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                String oldId = oldList.get(oldItemPosition).getId();
+                String newId = newList.get(newItemPosition).getId();
+                return Objects.equals(oldId, newId);
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return Objects.equals(oldList.get(oldItemPosition), newList.get(newItemPosition));
+            }
+        });
+        this.addresses = newList;
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull
@@ -48,7 +82,9 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
         Address address = addresses.get(position);
         holder.tvCity.setText(address.getCity() != null ? address.getCity() : "Могилев");
         holder.tvStreet.setText(address.getStreet());
-        holder.tvHouse.setText(holder.itemView.getContext().getString(R.string.house_format, address.getHouse()));
+        
+        // Теперь в tvHouse ставим только номер, так как "ДОМ" уже есть в разметке
+        holder.tvHouse.setText(address.getHouse());
         
         holder.tvEntrance.setVisibility(View.GONE);
         holder.btnDelete.setVisibility(isAdmin ? View.VISIBLE : View.GONE);

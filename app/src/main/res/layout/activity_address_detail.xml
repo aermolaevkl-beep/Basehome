@@ -7,6 +7,31 @@
     android:background="?android:attr/windowBackground"
     android:fitsSystemWindows="true">
 
+    <!-- Header with Back Button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingHorizontal="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBackAddressDetail"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="?android:attr/textColorPrimary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Детали адреса"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary" />
+    </RelativeLayout>
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -105,7 +130,7 @@
                 </RelativeLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Секция подъездов с выделенной кнопкой -->
+            <!-- Секция подъездов -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -165,7 +190,7 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Нижняя панель ввода комментария -->
+    <!-- Панель ввода комментария -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

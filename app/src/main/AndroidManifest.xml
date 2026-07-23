@@ -38,6 +38,14 @@
         <activity
             android:name=".PhysicalAddressActivity"
             android:exported="false" />
+        <activity
+            android:name=".UsersActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".GoogleDatabaseActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout" />
 
         <activity
             android:name=".MainActivity"

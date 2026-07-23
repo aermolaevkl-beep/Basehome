@@ -1,15 +1,17 @@
 package com.example.basehome;
 
+import java.util.Objects;
+
 public class BusinessAddress {
     private String id;
     private String street;
     private String house;
     private String city;
-    private String centerName; // Название ТЦ, БЦ
+    private String centerName;
     private String userId;
     private String userName;
-    private String socketLocation; // Где установлена розетка
-    private String reserveInfo; // Запас
+    private String socketLocation;
+    private String reserveInfo;
 
     public BusinessAddress() {}
 
@@ -19,7 +21,7 @@ public class BusinessAddress {
         this.centerName = centerName;
         this.userId = userId;
         this.userName = userName;
-        this.city = "Могилев"; // По умолчанию
+        this.city = "Могилев";
     }
 
     public BusinessAddress(String street, String house, String city, String centerName, String userId, String userName) {
@@ -49,4 +51,21 @@ public class BusinessAddress {
     public void setSocketLocation(String socketLocation) { this.socketLocation = socketLocation; }
     public String getReserveInfo() { return reserveInfo; }
     public void setReserveInfo(String reserveInfo) { this.reserveInfo = reserveInfo; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BusinessAddress that = (BusinessAddress) o;
+        return Objects.equals(id, that.id) &&
+                Objects.equals(street, that.street) &&
+                Objects.equals(house, that.house) &&
+                Objects.equals(city, that.city) &&
+                Objects.equals(centerName, that.centerName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, street, house, city, centerName);
+    }
 }

@@ -7,9 +7,35 @@
     android:background="?android:attr/windowBackground"
     android:fitsSystemWindows="true">
 
+    <!-- Header with Back Button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingHorizontal="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBackBusinessDetail"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="?android:attr/textColorPrimary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Юр. адрес"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary" />
+    </RelativeLayout>
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:fillViewport="true">
 
         <LinearLayout
@@ -72,6 +98,14 @@
                             android:textStyle="italic"
                             android:textColor="#FF9800"
                             android:layout_marginTop="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvBusAddedBy"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="10sp"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:layout_marginTop="8dp" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -119,7 +153,6 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSocket"
                     android:layout_width="wrap_content"
@@ -155,7 +188,6 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnReserve"
                     android:layout_width="wrap_content"
@@ -173,9 +205,69 @@
                 android:id="@+id/rvReserves"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Comments -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Комментарии"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?android:attr/textColorPrimary"
+                android:layout_marginBottom="12dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvComments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <!-- Lower panel for comment input -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="?attr/colorSurface"
+        android:elevation="8dp">
+        <TextView
+            android:id="@+id/tvReplyTo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="#2196F3"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/etNewComment"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Написать комментарий..."
+                android:padding="10dp"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textColorHint="?android:attr/textColorSecondary"
+                android:background="@android:drawable/editbox_background"
+                android:maxLines="3"
+                android:inputType="textMultiLine" />
+            <ImageButton
+                android:id="@+id/btnAddComment"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_send"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                app:tint="#FF9800" />
+        </LinearLayout>
+    </LinearLayout>
 
 </LinearLayout>

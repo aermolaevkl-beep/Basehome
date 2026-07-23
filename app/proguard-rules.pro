@@ -1,21 +1,23 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Сохраняем модели данных для корректной работы Firebase и GSON
+-keep class com.example.basehome.Address { *; }
+-keep class com.example.basehome.BusinessAddress { *; }
+-keep class com.example.basehome.GoogleAddress { *; }
+-keep class com.example.basehome.Comment { *; }
+-keep class com.example.basehome.Entrance { *; }
+-keep class com.example.basehome.BusinessInfoEntry { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Правила для GSON
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Правила для Firebase
+-keepattributes *Annotation*
+-keepclassmembers class * {
+  @com.google.firebase.database.PropertyName <fields>;
+}
+-keep class com.google.firebase.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Сохраняем системные атрибуты для отладки (если нужно будет читать логи ошибок)
+-keepattributes SourceFile,LineNumberTable

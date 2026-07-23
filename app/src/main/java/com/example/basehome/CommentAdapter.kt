@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -16,8 +17,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class CommentAdapter(
-    private val comments: List<Comment>,
-    private val isAdmin: Boolean,
+    private var comments: List<Comment>,
+    private var isAdmin: Boolean,
     private val onReactionClick: (Comment, Boolean) -> Unit,
     private val onReplyClick: (Comment) -> Unit,
     private val onDeleteClick: (Comment) -> Unit,
@@ -39,6 +40,23 @@ class CommentAdapter(
         val rootLayout: LinearLayout = view as LinearLayout
     }
 
+    fun setAdmin(admin: Boolean) {
+        this.isAdmin = admin
+        notifyDataSetChanged()
+    }
+
+    fun updateList(newComments: List<Comment>) {
+        val diffCallback = object : DiffUtil.Callback() {
+            override fun getOldListSize() = comments.size
+            override fun getNewListSize() = newComments.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int) = comments[oldPos].id == newComments[newPos].id
+            override fun areContentsTheSame(oldPos: Int, newPos: Int) = comments[oldPos] == newComments[newPos]
+        }
+        val diffResult = DiffUtil.calculateDiff(diffCallback)
+        this.comments = newComments.toList()
+        diffResult.dispatchUpdatesTo(this)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_comment, parent, false)
         return CommentViewHolder(view)
@@ -53,7 +71,7 @@ class CommentAdapter(
         val uid = comment.authorId
         if (!uid.isNullOrEmpty()) {
             if (nameCache.containsKey(uid)) {
-                holder.tvAuthor.text = nameCache[uid]
+                holder.tvAuthor.text = RankHelper.formatNameWithRank(uid, nameCache[uid])
             } else {
                 holder.tvAuthor.text = "" 
                 FirebaseDatabase.getInstance().getReference("users").child(uid).child("name")
@@ -65,7 +83,7 @@ class CommentAdapter(
                             
                             val updatedPos = holder.bindingAdapterPosition
                             if (updatedPos != RecyclerView.NO_POSITION && comments[updatedPos].authorId == uid) {
-                                holder.tvAuthor.text = finalName
+                                holder.tvAuthor.text = RankHelper.formatNameWithRank(uid, finalName)
                             }
                         }
                         override fun onCancelled(error: DatabaseError) {}

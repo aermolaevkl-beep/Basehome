@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +20,7 @@ public class AddAddressActivity extends AppCompatActivity {
     private Spinner spinnerCity;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
+    private Button btnSave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,14 +33,18 @@ public class AddAddressActivity extends AppCompatActivity {
         etStreet = findViewById(R.id.etStreet);
         etHouse = findViewById(R.id.etHouse);
         spinnerCity = findViewById(R.id.spinnerCity);
-        Button btnSave = findViewById(R.id.btnSave);
+        btnSave = findViewById(R.id.btnSave);
+        ImageButton btnBack = findViewById(R.id.btnBackAddAddress);
 
-        // Настройка спиннера городов
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
+
         String[] cities = {"Могилев", "Бобруйск"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cities);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCity.setAdapter(adapter);
-        spinnerCity.setSelection(0); // Могилев по умолчанию
+        spinnerCity.setSelection(0);
 
         btnSave.setOnClickListener(v -> saveAddress());
     }
@@ -57,14 +63,17 @@ public class AddAddressActivity extends AppCompatActivity {
             return;
         }
 
+        // Блокируем кнопку, чтобы избежать дубликатов
+        btnSave.setEnabled(false);
+        btnSave.setText("Сохранение...");
+
         String street = capitalize(streetInput);
-        String house = houseInput; 
         String city = spinnerCity.getSelectedItem().toString();
 
         FirebaseUser user = auth.getCurrentUser();
         if (user == null) {
-            Toast.makeText(this, "Пользователь не авторизован", Toast.LENGTH_SHORT).show();
-            finish();
+            btnSave.setEnabled(true);
+            btnSave.setText("Создать адрес");
             return;
         }
 
@@ -75,19 +84,26 @@ public class AddAddressActivity extends AppCompatActivity {
                 String userName = snapshot.getValue(String.class);
                 if (userName == null) userName = user.getEmail();
                 
-                Address address = new Address(street, house, city, user.getUid(), userName);
+                Address address = new Address(street, houseInput, city, user.getUid(), userName);
                 if (id != null) {
                     databaseReference.child(id).setValue(address)
                             .addOnSuccessListener(aVoid -> {
                                 Toast.makeText(AddAddressActivity.this, "Адрес успешно создан!", Toast.LENGTH_SHORT).show();
-                                
                                 Intent intent = new Intent(AddAddressActivity.this, AddressDetailActivity.class);
                                 intent.putExtra("addressId", id);
                                 startActivity(intent);
                                 finish();
                             })
-                            .addOnFailureListener(e -> Toast.makeText(AddAddressActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                            .addOnFailureListener(e -> {
+                                btnSave.setEnabled(true);
+                                btnSave.setText("Создать адрес");
+                                Toast.makeText(AddAddressActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
                 }
+            })
+            .addOnFailureListener(e -> {
+                btnSave.setEnabled(true);
+                btnSave.setText("Создать адрес");
             });
     }
 }

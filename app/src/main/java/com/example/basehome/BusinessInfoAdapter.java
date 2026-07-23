@@ -52,10 +52,11 @@ public class BusinessInfoAdapter extends RecyclerView.Adapter<BusinessInfoAdapte
         BusinessInfoEntry entry = entries.get(position);
         holder.tvText.setText(entry.getText());
         
-        boolean isAuthor = currentUserId != null && currentUserId.equals(entry.getAuthorId());
+        // Разрешаем всем авторизованным пользователям редактировать и удалять отметки
+        boolean isLogged = currentUserId != null;
         
-        holder.btnDelete.setVisibility(isAdmin || isAuthor ? View.VISIBLE : View.GONE);
-        holder.btnEdit.setVisibility(isAuthor ? View.VISIBLE : View.GONE);
+        holder.btnDelete.setVisibility(isLogged ? View.VISIBLE : View.GONE);
+        holder.btnEdit.setVisibility(isLogged ? View.VISIBLE : View.GONE);
 
         holder.btnDelete.setOnClickListener(v -> {
             if (deleteListener != null) deleteListener.onDeleteClick(entry);

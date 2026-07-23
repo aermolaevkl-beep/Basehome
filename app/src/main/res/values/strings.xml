@@ -26,4 +26,27 @@
     <string name="house_label">дом %1$s</string>
     <string name="plus_count">+ %1$d</string>
     <string name="minus_count">- %1$d</string>
+
+    <!-- Профиль и Ранги -->
+    <string name="rank_label">Ранг: %1$s</string>
+    <string name="rank_legend">Легенда</string>
+    <string name="rank_master">Мастер</string>
+    <string name="rank_activist">Активист</string>
+    <string name="rank_advanced">Продвинутый</string>
+    <string name="rank_newbie">Новичок</string>
+    <string name="user_default_name">Пользователь</string>
+    <string name="confirm_delete_address">Удалить адрес %1$s?</string>
+    <string name="edit_comment">Правка комментария</string>
+    <string name="confirm_delete_comment">Удалить этот комментарий?</string>
+    <string name="change_name_title">Ваше имя</string>
+    <string name="load_more">Показать еще 10</string>
+
+    <!-- Google Таблицы -->
+    <string name="loading_data">Загрузка данных...</string>
+    <string name="network_error">Ошибка сети. Попробуйте позже.</string>
+    <string name="update_db_title">Обновление</string>
+    <string name="update_db_message">Загрузить свежую базу из Google Таблиц? Это может занять время.</string>
+    <string name="db_updated">База обновлена и сохранена!</string>
+    <string name="reading_local_db">Чтение локальной базы...</string>
+    <string name="loading_from_google">Загрузка данных из Google Таблиц...</string>
 </resources>

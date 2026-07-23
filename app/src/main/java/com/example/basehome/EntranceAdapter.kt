@@ -5,12 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.*
 
 class EntranceAdapter(
-    private val entrances: List<Entrance>,
+    private var entrances: List<Entrance>,
     private val onEditClick: (Entrance) -> Unit
 ) : RecyclerView.Adapter<EntranceAdapter.EntranceViewHolder>() {
 
@@ -23,6 +24,18 @@ class EntranceAdapter(
         val btnEdit: ImageButton = view.findViewById(R.id.btnEditEntrance)
     }
 
+    fun updateList(newList: List<Entrance>) {
+        val diffCallback = object : DiffUtil.Callback() {
+            override fun getOldListSize() = entrances.size
+            override fun getNewListSize() = newList.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int) = entrances[oldPos].id == newList[newPos].id
+            override fun areContentsTheSame(oldPos: Int, newPos: Int) = entrances[oldPos] == newList[newPos]
+        }
+        val diffResult = DiffUtil.calculateDiff(diffCallback)
+        this.entrances = newList.toList()
+        diffResult.dispatchUpdatesTo(this)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EntranceViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_entrance, parent, false)
         return EntranceViewHolder(view)
@@ -32,7 +45,6 @@ class EntranceAdapter(
         val entrance = entrances[position]
         holder.tvNumber.text = "Подъезд №${entrance.number}"
         
-        // Отображаем только заполненные поля
         if (entrance.intercomCode.isNullOrBlank()) {
             holder.tvIntercom.visibility = View.GONE
         } else {
@@ -56,7 +68,10 @@ class EntranceAdapter(
         
         val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
         val date = sdf.format(Date(entrance.lastEditTimestamp))
-        holder.tvLastEdit.text = "Изм: ${entrance.lastEditorName} ($date)"
+        
+        // Добавляем значок ранга редактору
+        val nameWithRank = RankHelper.formatNameWithRank(entrance.lastEditorId, entrance.lastEditorName)
+        holder.tvLastEdit.text = android.text.TextUtils.concat("Изм: ", nameWithRank, " ($date)")
 
         holder.btnEdit.setOnClickListener { onEditClick(entrance) }
     }

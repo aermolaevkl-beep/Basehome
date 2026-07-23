@@ -8,11 +8,38 @@
     android:fitsSystemWindows="true"
     android:background="?android:attr/windowBackground">
 
-    <!-- Header Section with Profile and Logout -->
+    <!-- Header Section with Status, Profile and Logout -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="32dp">
+
+        <!-- Connection Indicator -->
+        <LinearLayout
+            android:id="@+id/llConnectionStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp">
+
+            <View
+                android:id="@+id/vConnectionIndicator"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@android:color/darker_gray" />
+
+            <TextView
+                android:id="@+id/tvConnectionStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="Связь..."
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -74,6 +101,15 @@
         android:layout_height="80dp"
         android:text="Юр. адреса"
         android:textSize="18sp"
-        android:backgroundTint="#FF9800" />
+        android:backgroundTint="#FF9800"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnDatabase"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="База данных"
+        android:textSize="18sp"
+        android:backgroundTint="#4CAF50" />
 
 </LinearLayout>

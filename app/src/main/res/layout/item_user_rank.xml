@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:id="@+id/tvRankPosition"
+        android:layout_width="32dp"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/brand_accent"
+        android:text="1" />
+
+    <TextView
+        android:id="@+id/tvRankUserName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:text="Имя пользователя" />
+
+    <TextView
+        android:id="@+id/tvRankCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorSecondary"
+        android:text="10" />
+
+</LinearLayout>

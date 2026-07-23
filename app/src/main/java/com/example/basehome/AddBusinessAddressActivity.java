@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +20,7 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
     private Spinner spinnerCity;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
+    private Button btnSave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,14 +34,18 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
         etHouse = findViewById(R.id.etBusinessHouse);
         etCenter = findViewById(R.id.etCenterName);
         spinnerCity = findViewById(R.id.spinnerBusinessCity);
-        Button btnSave = findViewById(R.id.btnSaveBusiness);
+        btnSave = findViewById(R.id.btnSaveBusiness);
+        ImageButton btnBack = findViewById(R.id.btnBackAddBusiness);
 
-        // Настройка спиннера городов
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
+
         String[] cities = {"Могилев", "Бобруйск"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cities);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCity.setAdapter(adapter);
-        spinnerCity.setSelection(0); // Могилев по умолчанию
+        spinnerCity.setSelection(0);
 
         btnSave.setOnClickListener(v -> saveBusinessAddress());
     }
@@ -50,22 +56,30 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
     }
 
     private void saveBusinessAddress() {
-        String street = capitalize(etStreet.getText().toString().trim());
-        String house = etHouse.getText().toString().trim();
-        String center = capitalize(etCenter.getText().toString().trim());
+        String streetInput = etStreet.getText().toString().trim();
+        String houseInput = etHouse.getText().toString().trim();
+        String centerInput = etCenter.getText().toString().trim();
         String city = spinnerCity.getSelectedItem().toString();
 
-        if (street.isEmpty() || house.isEmpty() || center.isEmpty()) {
+        if (streetInput.isEmpty() || houseInput.isEmpty() || centerInput.isEmpty()) {
             Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // Блокируем кнопку
+        btnSave.setEnabled(false);
+        btnSave.setText("Сохранение...");
+
         FirebaseUser user = auth.getCurrentUser();
         if (user == null) {
+            btnSave.setEnabled(true);
+            btnSave.setText("Сохранить");
             finish();
             return;
         }
 
+        String street = capitalize(streetInput);
+        String center = capitalize(centerInput);
         String id = databaseReference.push().getKey();
         
         FirebaseDatabase.getInstance().getReference("users").child(user.getUid()).child("name").get()
@@ -73,7 +87,7 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
                 String userName = snapshot.getValue(String.class);
                 if (userName == null) userName = user.getEmail();
                 
-                BusinessAddress address = new BusinessAddress(street, house, city, center, user.getUid(), userName);
+                BusinessAddress address = new BusinessAddress(street, houseInput, city, center, user.getUid(), userName);
                 if (id != null) {
                     databaseReference.child(id).setValue(address)
                             .addOnSuccessListener(aVoid -> {
@@ -84,9 +98,15 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
                                 finish();
                             })
                             .addOnFailureListener(e -> {
+                                btnSave.setEnabled(true);
+                                btnSave.setText("Сохранить");
                                 Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                             });
                 }
+            })
+            .addOnFailureListener(e -> {
+                btnSave.setEnabled(true);
+                btnSave.setText("Сохранить");
             });
     }
 }

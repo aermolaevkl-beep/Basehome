@@ -5,73 +5,98 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="12dp"
     android:layout_marginVertical="6dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="2dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#FF9800">
+    app:strokeColor="#FFE0B2">
 
-    <RelativeLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp"
         android:background="?android:attr/selectableItemBackground">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <!-- Город -->
+        <TextView
+            android:id="@+id/tvBusItemCity"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorSecondary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Название улицы / ТЦ -->
+        <TextView
+            android:id="@+id/tvBusinessStreet"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            app:layout_constraintEnd_toStartOf="@+id/tvBusHouseContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvBusItemCity" />
+
+        <!-- Контейнер для номера дома (Бейдж) -->
+        <LinearLayout
+            android:id="@+id/tvBusHouseContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@android:drawable/toast_frame"
+            android:backgroundTint="#FFF3E0"
             android:orientation="vertical"
-            android:layout_toStartOf="@+id/btnDeleteBusinessItem">
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:gravity="center"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btnDeleteBusinessItem"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:id="@+id/tvBusItemCity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="10sp"
-                android:textColor="?android:attr/textColorSecondary"
-                android:layout_marginBottom="2dp" />
+                android:text="ДОМ"
+                android:textSize="9sp"
+                android:textColor="#E65100"
+                android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvBusinessStreet"
-                android:layout_width="match_parent"
+                android:id="@+id/tvBusinessHouse"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="?android:attr/textColorPrimary" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="4dp">
-
-                <TextView
-                    android:id="@+id/tvBusinessHouse"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="?android:attr/textColorSecondary" />
-
-                <TextView
-                    android:id="@+id/tvCenterName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:textSize="14sp"
-                    android:textStyle="italic"
-                    android:textColor="#FF9800" />
-            </LinearLayout>
+                android:textColor="#E65100" />
         </LinearLayout>
 
+        <!-- Название центра (если есть) -->
+        <TextView
+            android:id="@+id/tvCenterName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:textStyle="italic"
+            android:textColor="#FF9800"
+            app:layout_constraintEnd_toStartOf="@+id/tvBusHouseContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvBusinessStreet" />
+
+        <!-- Кнопка удаления -->
         <ImageButton
             android:id="@+id/btnDeleteBusinessItem"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_delete"
             app:tint="#D32F2F"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    </RelativeLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>
