@@ -30,7 +30,8 @@
         android:padding="12dp"
         android:layout_marginBottom="12dp"
         android:textColor="?android:attr/textColorPrimary"
-        android:background="@android:drawable/editbox_background"
+        android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:inputType="textCapSentences" />
 
     <EditText
@@ -40,7 +41,8 @@
         android:hint="Номер дома"
         android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
-        android:background="@android:drawable/editbox_background"
+        android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:inputType="textCapSentences" />
 
 </LinearLayout>

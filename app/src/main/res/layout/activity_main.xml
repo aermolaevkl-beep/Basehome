@@ -29,7 +29,7 @@
                 android:id="@+id/vConnectionIndicator"
                 android:layout_width="10dp"
                 android:layout_height="10dp"
-                android:background="@android:color/darker_gray" />
+                android:background="@drawable/ic_connection_dot" />
 
             <TextView
                 android:id="@+id/tvConnectionStatus"

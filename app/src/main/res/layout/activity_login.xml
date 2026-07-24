@@ -15,7 +15,7 @@
         android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@android:drawable/editbox_background"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="16dp"
         android:inputType="textEmailAddress" />
 
@@ -27,7 +27,7 @@
         android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@android:drawable/editbox_background"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="16dp"
         android:inputType="textPassword" />
 

@@ -3,14 +3,13 @@ package com.example.basehome;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -39,6 +38,14 @@ public class MainActivity extends AppCompatActivity {
     private View vConnectionIndicator;
     private TextView tvConnectionStatus;
     private DatabaseReference userStatusRef;
+    private DatabaseReference connectedRef;
+    private ValueEventListener connectionListener;
+    
+    private final Handler pingHandler = new Handler(Looper.getMainLooper());
+    private Runnable pingRunnable;
+    private boolean isPingRunning = false;
+    private long lastPing = -1;
+    private boolean isOnline = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,10 +55,7 @@ public class MainActivity extends AppCompatActivity {
         currentUser = auth.getCurrentUser();
 
         if (currentUser == null) {
-            Intent intent = new Intent(this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
+            goToLogin();
             return;
         }
 
@@ -60,15 +64,17 @@ public class MainActivity extends AppCompatActivity {
         vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         
-        GradientDrawable shape = new GradientDrawable();
-        shape.setShape(GradientDrawable.OVAL);
-        vConnectionIndicator.setBackground(shape);
+        // Используем XML форму для индикатора
+        if (vConnectionIndicator.getBackground() == null) {
+            GradientDrawable shape = new GradientDrawable();
+            shape.setShape(GradientDrawable.OVAL);
+            vConnectionIndicator.setBackground(shape);
+        }
 
         findViewById(R.id.btnLogout).setOnClickListener(v -> {
             if (userStatusRef != null) userStatusRef.child("isOnline").setValue(false);
             auth.signOut();
-            startActivity(new Intent(MainActivity.this, LoginActivity.class));
-            finish();
+            goToLogin();
         });
 
         findViewById(R.id.btnProfile).setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
@@ -79,22 +85,28 @@ public class MainActivity extends AppCompatActivity {
         updateManager = new UpdateManager(this);
         setupRemoteConfig();
         checkUpdate();
-        updateUI(findViewById(R.id.btnProfile));
-        observeConnectionStatus();
-        setupPresence(); 
+        updateUI();
+        setupPresenceAndConnection(); 
         calculateGlobalRanks(); 
         syncUser();
     }
 
+    private void goToLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
     private void calculateGlobalRanks() {
-        FirebaseDatabase.getInstance().getReference("addresses").addValueEventListener(new ValueEventListener() {
+        FirebaseDatabase.getInstance().getReference("addresses").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 Map<String, Integer> counts = new HashMap<>();
                 for (DataSnapshot item : snapshot.getChildren()) {
                     String uid = item.child("userId").getValue(String.class);
                     if (uid != null && !uid.isEmpty()) {
-                        counts.put(uid, counts.getOrDefault(uid, 0) + 1);
+                        counts.merge(uid, 1, Integer::sum);
                     }
                 }
                 List<Map.Entry<String, Integer>> list = new ArrayList<>(counts.entrySet());
@@ -111,45 +123,84 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void setupPresence() {
+    private void setupPresenceAndConnection() {
         if (currentUser == null) return;
         userStatusRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid());
-        
-        DatabaseReference connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
-        connectedRef.addValueEventListener(new ValueEventListener() {
+        connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+
+        connectionListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                boolean connected = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
-                if (connected) {
+                isOnline = Boolean.TRUE.equals(snapshot.getValue(Boolean.class));
+                if (isOnline) {
                     userStatusRef.child("isOnline").setValue(true);
                     userStatusRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP);
                     userStatusRef.child("isOnline").onDisconnect().setValue(false);
                 }
+                refreshStatusUI();
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
-        });
+        };
+        connectedRef.addValueEventListener(connectionListener);
     }
 
-    private void observeConnectionStatus() {
-        DatabaseReference connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
-        connectedRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                boolean connected = snapshot.getValue(Boolean.class) != null && snapshot.getValue(Boolean.class);
-                if (connected) {
-                    ((GradientDrawable)vConnectionIndicator.getBackground()).setColor(
-                            ContextCompat.getColor(MainActivity.this, android.R.color.holo_green_light));
-                    tvConnectionStatus.setText("Онлайн");
-                } else {
-                    ((GradientDrawable)vConnectionIndicator.getBackground()).setColor(
-                            ContextCompat.getColor(MainActivity.this, android.R.color.holo_red_light));
-                    tvConnectionStatus.setText("Офлайн");
-                }
+    private void refreshStatusUI() {
+        if (vConnectionIndicator == null || tvConnectionStatus == null) return;
+
+        int color;
+        String statusText;
+
+        if (!isOnline) {
+            color = ContextCompat.getColor(this, android.R.color.holo_red_light);
+            statusText = getString(R.string.status_offline);
+        } else {
+            statusText = getString(R.string.status_online);
+            if (lastPing >= 0) {
+                if (lastPing < 150) color = ContextCompat.getColor(this, android.R.color.holo_green_light);
+                else if (lastPing < 500) color = ContextCompat.getColor(this, android.R.color.holo_orange_light);
+                else color = ContextCompat.getColor(this, android.R.color.holo_red_light);
+                statusText = getString(R.string.ping_format, statusText, (int)lastPing);
+            } else {
+                color = ContextCompat.getColor(this, android.R.color.holo_green_light);
             }
+        }
+
+        tvConnectionStatus.setText(statusText);
+        if (vConnectionIndicator.getBackground() instanceof GradientDrawable) {
+            ((GradientDrawable) vConnectionIndicator.getBackground()).setColor(color);
+        }
+    }
+
+    private void startPingMeasurement() {
+        if (isPingRunning) return;
+        isPingRunning = true;
+        
+        pingRunnable = new Runnable() {
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
+            public void run() {
+                if (!isPingRunning) return;
+                if (!isOnline) {
+                    pingHandler.postDelayed(this, 5000);
+                    return;
+                }
+                
+                final long startTime = System.currentTimeMillis();
+                FirebaseDatabase.getInstance().getReference(".info/serverTimeOffset").get().addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && isPingRunning) {
+                        lastPing = System.currentTimeMillis() - startTime;
+                        refreshStatusUI();
+                    }
+                    if (isPingRunning) pingHandler.postDelayed(pingRunnable, 10000);
+                });
+            }
+        };
+        pingHandler.post(pingRunnable);
+    }
+
+    private void stopPingMeasurement() {
+        isPingRunning = false;
+        if (pingRunnable != null) pingHandler.removeCallbacks(pingRunnable);
     }
 
     private void syncUser() {
@@ -160,12 +211,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateUI(Button btnProfile) {
+    private void updateUI() {
         if (currentUser != null) {
+            Button btnProfile = findViewById(R.id.btnProfile);
             FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid()).child("isAdmin")
                 .get().addOnSuccessListener(snapshot -> {
+                    if (isFinishing()) return;
                     Boolean isAdmin = snapshot.getValue(Boolean.class);
-                    btnProfile.setText(isAdmin != null && isAdmin ? "АДМИН-ПАНЕЛЬ" : "ПРОФИЛЬ");
+                    btnProfile.setText(Boolean.TRUE.equals(isAdmin) ? "АДМИН-ПАНЕЛЬ" : "ПРОФИЛЬ");
                 });
         }
     }
@@ -173,34 +226,30 @@ public class MainActivity extends AppCompatActivity {
     private void setupRemoteConfig() {
         remoteConfig = FirebaseRemoteConfig.getInstance();
         FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
-                .setMinimumFetchIntervalInSeconds(0).build();
+                .setMinimumFetchIntervalInSeconds(3600).build();
         remoteConfig.setConfigSettingsAsync(configSettings);
         Map<String, Object> defaults = new HashMap<>();
-        defaults.put("min_version_code", "1");
+        defaults.put("min_version_code", 1L);
         defaults.put("apk_download_url", "");
-        defaults.put("force_update", "false");
+        defaults.put("force_update", false);
         defaults.put("latest_version_name", "1.0");
         remoteConfig.setDefaultsAsync(defaults);
     }
 
     private void checkUpdate() {
         remoteConfig.fetchAndActivate().addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                String minVersionStr = remoteConfig.getString("min_version_code");
+            if (task.isSuccessful() && !isFinishing()) {
+                long minVersion = remoteConfig.getLong("min_version_code");
                 String updateUrl = remoteConfig.getString("apk_download_url");
-                int currentVersion = BuildConfig.VERSION_CODE;
-                try {
-                    int minVersion = Integer.parseInt(minVersionStr.replaceAll("[^0-9]", ""));
-                    if (minVersion > currentVersion && !updateUrl.isEmpty()) {
-                        showUpdateDialog(updateUrl, remoteConfig.getBoolean("force_update"), remoteConfig.getString("latest_version_name"));
-                    }
-                } catch (Exception ignored) {}
+                if (minVersion > BuildConfig.VERSION_CODE && !updateUrl.isEmpty()) {
+                    showUpdateDialog(updateUrl, remoteConfig.getBoolean("force_update"), remoteConfig.getString("latest_version_name"));
+                }
             }
         });
     }
 
     private void showUpdateDialog(String url, boolean isForce, String versionName) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("Доступна версия " + versionName)
                 .setMessage("Пожалуйста, обновите приложение.")
                 .setPositiveButton("Обновить", (d, w) -> updateManager.downloadAndInstall(url));
@@ -215,5 +264,21 @@ public class MainActivity extends AppCompatActivity {
         if (auth.getCurrentUser() != null && userStatusRef != null) {
             userStatusRef.child("isOnline").setValue(true);
         }
+        startPingMeasurement();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopPingMeasurement();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (connectedRef != null && connectionListener != null) {
+            connectedRef.removeEventListener(connectionListener);
+        }
+        stopPingMeasurement();
     }
 }

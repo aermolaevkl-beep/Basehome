@@ -40,16 +40,28 @@
         android:text="Добавить юр. адрес"
         android:backgroundTint="#FF9800" />
 
-    <EditText
-        android:id="@+id/etSearchBusiness"
+    <!-- Поисковая строка -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:hint="Поиск (улица, ТЦ...)"
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@android:drawable/editbox_background" />
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/colorOutline">
+
+        <EditText
+            android:id="@+id/etSearchBusiness"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Поиск (улица, ТЦ...)"
+            android:padding="12dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary"
+            android:background="@android:color/transparent"
+            android:inputType="text"
+            android:maxLines="1" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/tvSectionTitleBusiness"

@@ -12,8 +12,10 @@
         android:layout_height="wrap_content"
         android:hint="Номер подъезда"
         android:inputType="number"
+        android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="12dp" />
 
     <EditText
@@ -22,8 +24,10 @@
         android:layout_height="wrap_content"
         android:hint="Код домофона"
         android:inputType="textCapSentences"
+        android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="12dp" />
 
     <EditText
@@ -32,8 +36,10 @@
         android:layout_height="wrap_content"
         android:hint="Этаж кросса"
         android:inputType="textCapSentences"
+        android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="12dp" />
 
     <EditText
@@ -42,8 +48,10 @@
         android:layout_height="wrap_content"
         android:hint="Ключ от подвала"
         android:inputType="textCapSentences"
+        android:padding="12dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
         android:layout_marginBottom="12dp" />
 
 </LinearLayout>

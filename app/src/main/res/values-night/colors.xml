@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Цвета для темной темы -->
+    <color name="brand_primary">#90CAF9</color>
+    <color name="brand_secondary">#64B5F6</color>
+    <color name="brand_accent">#FFB74D</color>
+
+    <!-- Цвета для карточек (Темная тема) - более приглушенные -->
+    <color name="card_bg_physical">#1A237E</color> <!-- Темно-синий -->
+    <color name="card_bg_business">#3E2723</color> <!-- Темно-коричневый -->
+    <color name="card_bg_google">#37474F</color>   <!-- Темно-серый -->
+
+    <color name="text_on_card_physical">#BBDEFB</color>
+    <color name="text_on_card_business">#FFE0B2</color>
+    <color name="text_on_card_google">#CFD8DC</color>
+</resources>

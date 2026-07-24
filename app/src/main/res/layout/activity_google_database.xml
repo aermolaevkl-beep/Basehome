@@ -43,16 +43,27 @@
     </RelativeLayout>
 
     <!-- Search Box -->
-    <EditText
-        android:id="@+id/etSearchDatabase"
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:hint="Поиск по адресу или дому..."
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@android:drawable/editbox_background" />
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/colorOutline">
+
+        <EditText
+            android:id="@+id/etSearchDatabase"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Поиск по адресу или дому..."
+            android:padding="12dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary"
+            android:background="@android:color/transparent"
+            android:inputType="text"
+            android:maxLines="1" />
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Loading State Container -->
     <LinearLayout

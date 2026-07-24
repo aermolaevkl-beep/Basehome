@@ -13,21 +13,25 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:background="?android:attr/selectableItemBackground">
 
         <!-- Дата (в правом верхнем углу) -->
         <TextView
             android:id="@+id/tvGoogleDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@android:drawable/toast_frame"
-            android:backgroundTint="#F0F0F0"
-            android:paddingHorizontal="8dp"
+            android:minHeight="24dp"
+            android:gravity="center"
+            android:background="@drawable/bg_badge"
+            android:backgroundTint="@color/card_bg_google"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="2dp"
             android:text="00.00.0000"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="@color/text_on_card_google"
             android:textSize="11sp"
             android:textStyle="bold"
+            android:includeFontPadding="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -52,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Техник"
-            android:textColor="#2196F3"
+            android:textColor="@color/brand_primary"
             android:textSize="14sp"
             app:layout_constraintTop_toBottomOf="@id/tvGoogleStreetHouse" />
 

@@ -49,4 +49,16 @@
     <string name="db_updated">База обновлена и сохранена!</string>
     <string name="reading_local_db">Чтение локальной базы...</string>
     <string name="loading_from_google">Загрузка данных из Google Таблиц...</string>
+
+    <!-- Connection Status -->
+    <string name="status_online">Онлайн</string>
+    <string name="status_offline">Офлайн</string>
+    <string name="status_measuring">%1$s (замер...)</string>
+    <string name="ping_format">%1$s (%2$d мс)</string>
+
+    <!-- Updates -->
+    <string name="update_available_title">Доступна версия %1$s</string>
+    <string name="update_available_msg">Пожалуйста, обновите приложение.</string>
+    <string name="update_btn">Обновить</string>
+    <string name="later_btn">Позже</string>
 </resources>

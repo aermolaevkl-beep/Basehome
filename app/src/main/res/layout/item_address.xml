@@ -8,7 +8,7 @@
     app:cardCornerRadius="12dp"
     app:cardElevation="3dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#BBDEFB">
+    app:strokeColor="@color/brand_primary">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -16,18 +16,15 @@
         android:padding="16dp"
         android:background="?android:attr/selectableItemBackground">
 
-        <!-- Город (маленький текст сверху) -->
         <TextView
             android:id="@+id/tvItemCity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="11sp"
             android:textColor="?android:attr/textColorSecondary"
-            android:text="Могилев"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Название улицы -->
         <TextView
             android:id="@+id/tvStreet"
             android:layout_width="0dp"
@@ -41,28 +38,33 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvItemCity" />
 
-        <!-- Контейнер для номера дома (Бейдж) -->
-        <LinearLayout
+        <!-- Контейнер с ConstraintLayout гарантирует центрирование пары текстов как единого целого -->
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/tvHouseContainer"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@android:drawable/toast_frame"
-            android:backgroundTint="#E3F2FD"
-            android:orientation="vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            android:gravity="center"
+            android:layout_height="0dp"
+            android:minWidth="60dp"
+            android:background="@drawable/bg_badge"
+            android:backgroundTint="@color/card_bg_physical"
+            android:paddingHorizontal="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btnDeleteAddressItem"
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
+                android:id="@+id/tvHouseLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ДОМ"
                 android:textSize="9sp"
-                android:textColor="#1976D2"
-                android:textStyle="bold" />
+                android:textColor="@color/text_on_card_physical"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                app:layout_constraintBottom_toTopOf="@+id/tvHouse"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_chainStyle="packed" />
 
             <TextView
                 android:id="@+id/tvHouse"
@@ -70,11 +72,14 @@
                 android:layout_height="wrap_content"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#1976D2"
-                android:text="5" />
-        </LinearLayout>
+                android:textColor="@color/text_on_card_physical"
+                android:includeFontPadding="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvHouseLabel" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- Подъезд (если нужен) -->
         <TextView
             android:id="@+id/tvEntrance"
             android:layout_width="wrap_content"
@@ -85,7 +90,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvStreet" />
 
-        <!-- Кнопка удаления -->
         <ImageButton
             android:id="@+id/btnDeleteAddressItem"
             android:layout_width="40dp"

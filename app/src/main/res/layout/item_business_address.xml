@@ -8,7 +8,7 @@
     app:cardCornerRadius="12dp"
     app:cardElevation="3dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#FFE0B2">
+    app:strokeColor="@color/brand_accent">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -16,7 +16,6 @@
         android:padding="16dp"
         android:background="?android:attr/selectableItemBackground">
 
-        <!-- Город -->
         <TextView
             android:id="@+id/tvBusItemCity"
             android:layout_width="wrap_content"
@@ -26,7 +25,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Название улицы / ТЦ -->
         <TextView
             android:id="@+id/tvBusinessStreet"
             android:layout_width="0dp"
@@ -40,16 +38,17 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBusItemCity" />
 
-        <!-- Контейнер для номера дома (Бейдж) -->
         <LinearLayout
             android:id="@+id/tvBusHouseContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@android:drawable/toast_frame"
-            android:backgroundTint="#FFF3E0"
+            android:minWidth="56dp"
+            android:minHeight="44dp"
+            android:background="@drawable/bg_badge"
+            android:backgroundTint="@color/card_bg_business"
             android:orientation="vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
             android:gravity="center"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btnDeleteBusinessItem"
@@ -60,8 +59,9 @@
                 android:layout_height="wrap_content"
                 android:text="ДОМ"
                 android:textSize="9sp"
-                android:textColor="#E65100"
-                android:textStyle="bold" />
+                android:textColor="@color/text_on_card_business"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
 
             <TextView
                 android:id="@+id/tvBusinessHouse"
@@ -69,10 +69,10 @@
                 android:layout_height="wrap_content"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#E65100" />
+                android:textColor="@color/text_on_card_business"
+                android:includeFontPadding="false" />
         </LinearLayout>
 
-        <!-- Название центра (если есть) -->
         <TextView
             android:id="@+id/tvCenterName"
             android:layout_width="0dp"
@@ -80,12 +80,11 @@
             android:layout_marginTop="4dp"
             android:textSize="13sp"
             android:textStyle="italic"
-            android:textColor="#FF9800"
+            android:textColor="@color/brand_accent"
             app:layout_constraintEnd_toStartOf="@+id/tvBusHouseContainer"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBusinessStreet" />
 
-        <!-- Кнопка удаления -->
         <ImageButton
             android:id="@+id/btnDeleteBusinessItem"
             android:layout_width="40dp"
