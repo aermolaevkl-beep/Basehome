@@ -5,6 +5,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -64,13 +65,29 @@ public class MainActivity extends AppCompatActivity {
         vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         
-        // Используем XML форму для индикатора
-        if (vConnectionIndicator.getBackground() == null) {
+        initIndicatorBackground();
+        setupClickListeners();
+        
+        updateManager = new UpdateManager(this);
+        setupRemoteConfig();
+        checkUpdate();
+        updateUI();
+        
+        setupPresenceAndConnection(); 
+        calculateGlobalRanks(); 
+        syncUser();
+    }
+
+    private void initIndicatorBackground() {
+        if (!(vConnectionIndicator.getBackground() instanceof GradientDrawable)) {
             GradientDrawable shape = new GradientDrawable();
             shape.setShape(GradientDrawable.OVAL);
+            shape.setColor(ContextCompat.getColor(this, android.R.color.darker_gray));
             vConnectionIndicator.setBackground(shape);
         }
+    }
 
+    private void setupClickListeners() {
         findViewById(R.id.btnLogout).setOnClickListener(v -> {
             if (userStatusRef != null) userStatusRef.child("isOnline").setValue(false);
             auth.signOut();
@@ -81,14 +98,6 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnPhysicalSection).setOnClickListener(v -> startActivity(new Intent(this, PhysicalAddressActivity.class)));
         findViewById(R.id.btnBusinessSection).setOnClickListener(v -> startActivity(new Intent(this, BusinessAddressActivity.class)));
         findViewById(R.id.btnDatabase).setOnClickListener(v -> startActivity(new Intent(this, GoogleDatabaseActivity.class)));
-        
-        updateManager = new UpdateManager(this);
-        setupRemoteConfig();
-        checkUpdate();
-        updateUI();
-        setupPresenceAndConnection(); 
-        calculateGlobalRanks(); 
-        syncUser();
     }
 
     private void goToLogin() {
@@ -136,6 +145,9 @@ public class MainActivity extends AppCompatActivity {
                     userStatusRef.child("isOnline").setValue(true);
                     userStatusRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP);
                     userStatusRef.child("isOnline").onDisconnect().setValue(false);
+                    triggerPing(); 
+                } else {
+                    lastPing = -1;
                 }
                 refreshStatusUI();
             }
@@ -146,53 +158,63 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshStatusUI() {
-        if (vConnectionIndicator == null || tvConnectionStatus == null) return;
+        runOnUiThread(() -> {
+            if (vConnectionIndicator == null || tvConnectionStatus == null) return;
 
-        int color;
-        String statusText;
+            int color;
+            String statusText;
 
-        if (!isOnline) {
-            color = ContextCompat.getColor(this, android.R.color.holo_red_light);
-            statusText = getString(R.string.status_offline);
-        } else {
-            statusText = getString(R.string.status_online);
-            if (lastPing >= 0) {
-                if (lastPing < 150) color = ContextCompat.getColor(this, android.R.color.holo_green_light);
-                else if (lastPing < 500) color = ContextCompat.getColor(this, android.R.color.holo_orange_light);
-                else color = ContextCompat.getColor(this, android.R.color.holo_red_light);
-                statusText = getString(R.string.ping_format, statusText, (int)lastPing);
+            if (!isOnline) {
+                color = ContextCompat.getColor(this, android.R.color.holo_red_light);
+                statusText = getString(R.string.status_offline);
             } else {
                 color = ContextCompat.getColor(this, android.R.color.holo_green_light);
+                String baseStatus = getString(R.string.status_online);
+                
+                if (lastPing >= 0) {
+                    if (lastPing >= 500) color = ContextCompat.getColor(this, android.R.color.holo_red_light);
+                    else if (lastPing >= 150) color = ContextCompat.getColor(this, android.R.color.holo_orange_light);
+                    statusText = getString(R.string.ping_format, baseStatus, (int)lastPing);
+                } else {
+                    statusText = getString(R.string.status_measuring, baseStatus);
+                }
             }
-        }
 
-        tvConnectionStatus.setText(statusText);
-        if (vConnectionIndicator.getBackground() instanceof GradientDrawable) {
-            ((GradientDrawable) vConnectionIndicator.getBackground()).setColor(color);
-        }
+            tvConnectionStatus.setText(statusText);
+            if (vConnectionIndicator.getBackground() instanceof GradientDrawable) {
+                ((GradientDrawable) vConnectionIndicator.getBackground()).setColor(color);
+            }
+        });
+    }
+
+    private void triggerPing() {
+        if (!isOnline || !isPingRunning) return;
+        
+        final long startTime = SystemClock.elapsedRealtime();
+        FirebaseDatabase.getInstance().getReference(".info/serverTimeOffset")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (!isPingRunning) return;
+                lastPing = SystemClock.elapsedRealtime() - startTime;
+                refreshStatusUI();
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
     }
 
     private void startPingMeasurement() {
-        if (isPingRunning) return;
+        stopPingMeasurement(); // Очищаем старый цикл перед запуском нового
         isPingRunning = true;
-        
         pingRunnable = new Runnable() {
             @Override
             public void run() {
                 if (!isPingRunning) return;
-                if (!isOnline) {
-                    pingHandler.postDelayed(this, 5000);
-                    return;
+                if (isOnline) {
+                    triggerPing();
                 }
-                
-                final long startTime = System.currentTimeMillis();
-                FirebaseDatabase.getInstance().getReference(".info/serverTimeOffset").get().addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && isPingRunning) {
-                        lastPing = System.currentTimeMillis() - startTime;
-                        refreshStatusUI();
-                    }
-                    if (isPingRunning) pingHandler.postDelayed(pingRunnable, 10000);
-                });
+                pingHandler.postDelayed(this, 10000);
             }
         };
         pingHandler.post(pingRunnable);
@@ -200,7 +222,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopPingMeasurement() {
         isPingRunning = false;
-        if (pingRunnable != null) pingHandler.removeCallbacks(pingRunnable);
+        if (pingRunnable != null) {
+            pingHandler.removeCallbacks(pingRunnable);
+            pingRunnable = null;
+        }
     }
 
     private void syncUser() {

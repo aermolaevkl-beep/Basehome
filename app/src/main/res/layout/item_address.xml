@@ -38,21 +38,24 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvItemCity" />
 
-        <!-- Контейнер с ConstraintLayout гарантирует центрирование пары текстов как единого целого -->
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <!-- Стабильный контейнер: высота wrap_content и gravity="center" гарантируют ровное положение текста -->
+        <LinearLayout
             android:id="@+id/tvHouseContainer"
             android:layout_width="wrap_content"
-            android:layout_height="0dp"
-            android:minWidth="60dp"
+            android:layout_height="wrap_content"
+            android:minWidth="56dp"
+            android:minHeight="48dp"
             android:background="@drawable/bg_badge"
             android:backgroundTint="@color/card_bg_physical"
-            android:paddingHorizontal="8dp"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:gravity="center"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btnDeleteAddressItem"
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:id="@+id/tvHouseLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ДОМ"
@@ -60,11 +63,7 @@
                 android:textColor="@color/text_on_card_physical"
                 android:textStyle="bold"
                 android:includeFontPadding="false"
-                app:layout_constraintBottom_toTopOf="@+id/tvHouse"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_chainStyle="packed" />
+                android:layout_marginBottom="-1dp" />
 
             <TextView
                 android:id="@+id/tvHouse"
@@ -73,12 +72,8 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_on_card_physical"
-                android:includeFontPadding="false"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvHouseLabel" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                android:includeFontPadding="false" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvEntrance"

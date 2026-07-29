@@ -38,30 +38,33 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBusItemCity" />
 
-        <LinearLayout
+        <!-- Надежный бейдж с гарантированным центрированием -->
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/tvBusHouseContainer"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="56dp"
-            android:minHeight="44dp"
+            android:layout_height="0dp"
+            android:minWidth="60dp"
             android:background="@drawable/bg_badge"
             android:backgroundTint="@color/card_bg_business"
-            android:orientation="vertical"
             android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:gravity="center"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btnDeleteBusinessItem"
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
+                android:id="@+id/tvBusHouseLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ДОМ"
                 android:textSize="9sp"
                 android:textColor="@color/text_on_card_business"
                 android:textStyle="bold"
-                android:includeFontPadding="false" />
+                android:includeFontPadding="false"
+                app:layout_constraintBottom_toTopOf="@+id/tvBusinessHouse"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_chainStyle="packed" />
 
             <TextView
                 android:id="@+id/tvBusinessHouse"
@@ -70,8 +73,12 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_on_card_business"
-                android:includeFontPadding="false" />
-        </LinearLayout>
+                android:includeFontPadding="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvBusHouseLabel" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <TextView
             android:id="@+id/tvCenterName"

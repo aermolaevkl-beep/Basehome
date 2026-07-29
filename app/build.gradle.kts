@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.basehome"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.4"
+        versionCode = 4
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -28,13 +28,19 @@ android {
             )
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+
+    // Исправляем предупреждение: используем современный compilerOptions
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
+
     buildFeatures {
         buildConfig = true
     }
