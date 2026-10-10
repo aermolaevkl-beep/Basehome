@@ -1,5 +1,45 @@
 <resources>
     <string name="app_name">Base home</string>
+    <string name="profile">Профиль</string>
+    <string name="physical_addresses">Физические адреса</string>
+    <string name="business_addresses">Юридические адреса</string>
+    <string name="database">База данных</string>
+    <string name="connection_checking">Связь...</string>
+    <string name="logout">Выйти</string>
+    <string name="main_welcome_title">Добро пожаловать</string>
+    <string name="main_welcome_subtitle">Адреса и полезная информация — всё в одном месте</string>
+    <string name="your_city">Ваш город</string>
+    <string name="choose_city">Выбрать город</string>
+    <string name="all_cities">Все города</string>
+    <string name="main_choose_section">Выберите раздел</string>
+    <string name="physical_addresses_description">Дома, подъезды и коды домофонов</string>
+    <string name="business_addresses_description">Организации и юридические адреса</string>
+    <string name="database_description">Быстрый поиск по базе адресов</string>
+    <string name="account_create_section_title">Создание аккаунта</string>
+    <string name="account_create_section_description">Создайте учётную запись с email и паролем. Новый пользователь получит обычные права.</string>
+    <string name="account_create_title">Новый аккаунт</string>
+    <string name="account_create_client_security_note">Создание через клиентское приложение не обеспечивает серверную проверку прав администратора.</string>
+    <string name="account_create_button">Создать аккаунт</string>
+    <string name="account_name_hint">Имя пользователя</string>
+    <string name="account_email_hint">Email</string>
+    <string name="account_password_hint">Пароль (минимум 6 символов)</string>
+    <string name="account_invalid_email">Введите корректный email</string>
+    <string name="account_password_too_short">Пароль должен содержать минимум 6 символов</string>
+    <string name="account_creation_sign_in_required">Войдите в аккаунт администратора</string>
+    <string name="account_creation_admin_only">Создавать аккаунты может только администратор</string>
+    <string name="account_creation_init_error">Не удалось подготовить создание аккаунта</string>
+    <string name="account_created">Аккаунт создан</string>
+    <string name="account_uid_missing">Firebase не вернул идентификатор нового аккаунта</string>
+    <string name="account_created_profile_error">Аккаунт создан, но профиль не сохранён: %1$s</string>
+    <string name="account_creation_error">Не удалось создать аккаунт: %1$s</string>
+    <string name="edit_user_profile">Редактировать профиль</string>
+    <string name="edit_user_profile_title">Профиль: %1$s</string>
+    <string name="edit_user_profile_fields_note">Можно изменить имя и город. Email и пароль Firebase меняются отдельно.</string>
+    <string name="edit_user_profile_error">Не удалось сохранить профиль: %1$s</string>
+    <string name="edit_user_city_optional">Город (необязательно)</string>
+    <string name="user_profile_updated">Профиль обновлён</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
     <string name="login">Войти</string>
     <string name="logout_format">Выйти (%1$s)</string>
     <string name="please_login">Сначала войдите в систему</string>
@@ -40,6 +80,8 @@
     <string name="confirm_delete_comment">Удалить этот комментарий?</string>
     <string name="change_name_title">Ваше имя</string>
     <string name="load_more">Показать еще 10</string>
+    <string name="edit_business_info">Редактировать</string>
+    <string name="delete_business_info">Удалить</string>
 
     <!-- Google Таблицы -->
     <string name="loading_data">Загрузка данных...</string>

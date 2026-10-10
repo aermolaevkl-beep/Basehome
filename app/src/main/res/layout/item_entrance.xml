@@ -4,8 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="6dp"
-    app:cardCornerRadius="6dp"
-    app:cardElevation="1dp"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
     app:strokeWidth="1dp"
     app:strokeColor="?attr/colorOutlineVariant">
 
@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="10dp"
+        android:padding="16dp"
         android:background="?attr/selectableItemBackground">
 
         <LinearLayout
@@ -38,7 +38,7 @@
                 android:layout_height="32dp"
                 android:src="@android:drawable/ic_menu_edit"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                app:tint="#2196F3"
+                app:tint="?attr/colorPrimary"
                 android:scaleType="centerInside" />
         </LinearLayout>
 
@@ -48,7 +48,7 @@
             android:layout_height="wrap_content"
             android:text="Код домофона: 1234"
             android:textSize="13sp"
-            android:textColor="#E53935"
+            android:textColor="?attr/colorError"
             android:textStyle="bold"
             android:layout_marginTop="4dp" />
 

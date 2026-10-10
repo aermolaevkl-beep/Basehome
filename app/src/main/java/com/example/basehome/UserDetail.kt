@@ -8,5 +8,6 @@ data class UserDetail(
     val commentCount: Int = 0,
     val isOnline: Boolean = false,
     val lastSeen: Long = 0,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+    val selectedCity: String = ""
 )

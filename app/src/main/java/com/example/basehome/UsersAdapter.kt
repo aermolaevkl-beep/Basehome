@@ -13,7 +13,8 @@ import com.google.android.material.button.MaterialButton
 
 class UsersAdapter(
     private var users: List<UserDetail>,
-    private val onAdminToggle: (UserDetail, Boolean) -> Unit
+    private val onAdminToggle: (UserDetail, Boolean) -> Unit,
+    private val onEditProfile: (UserDetail) -> Unit
 ) : RecyclerView.Adapter<UsersAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -24,6 +25,7 @@ class UsersAdapter(
         val vStatus: View = view.findViewById(R.id.vOnlineStatus)
         val tvLastSeen: TextView = view.findViewById(R.id.tvLastSeen)
         val btnToggleAdminStatus: MaterialButton = view.findViewById(R.id.btnToggleAdminStatus)
+        val btnEditProfile: MaterialButton = view.findViewById(R.id.btnEditUserProfile)
     }
 
     fun updateList(newList: List<UserDetail>) {
@@ -85,6 +87,9 @@ class UsersAdapter(
 
         holder.btnToggleAdminStatus.setOnClickListener {
             onAdminToggle(user, !user.isAdmin)
+        }
+        holder.btnEditProfile.setOnClickListener {
+            onEditProfile(user)
         }
     }
 

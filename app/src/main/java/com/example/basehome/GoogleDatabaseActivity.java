@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -49,6 +50,17 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private final AtomicInteger parsedAddressCount = new AtomicInteger();
+    private final Runnable progressUpdater = new Runnable() {
+        @Override
+        public void run() {
+            if (llLoadingContainer != null
+                    && llLoadingContainer.getVisibility() == View.VISIBLE) {
+                tvLoadingMessage.setText("Получено адресов: " + parsedAddressCount.get());
+                mainHandler.postDelayed(this, 150);
+            }
+        }
+    };
     private Future<?> searchTask;
     private AppDatabase db;
 
@@ -119,7 +131,10 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
 
     private void loadDataFromNetwork() {
         llLoadingContainer.setVisibility(View.VISIBLE);
-        tvLoadingMessage.setText("Загрузка данных из Google Таблиц...");
+        parsedAddressCount.set(0);
+        tvLoadingMessage.setText("Получено адресов: 0");
+        mainHandler.removeCallbacks(progressUpdater);
+        mainHandler.postDelayed(progressUpdater, 150);
         etSearch.setEnabled(false);
 
         OkHttpClient client = new OkHttpClient.Builder()
@@ -149,6 +164,11 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                         reader.setLenient(true);
                         recursiveParse(reader, temp);
                     }
+
+                    int totalRows = temp.size();
+                    mainHandler.removeCallbacks(progressUpdater);
+                    mainHandler.post(() -> tvLoadingMessage.setText(
+                            "Получено " + totalRows + " адресов. Сохранение в базу..."));
 
                     // Сохраняем в Room в фоновом потоке
                     executor.execute(() -> {
@@ -188,16 +208,16 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                         appendValue(reader, sb);
                     }
                     reader.endObject();
-                    if (sb.length() > 0) list.add(sb.toString());
+                    if (sb.length() > 0) addParsedRow(list, sb.toString());
                 } else if (inner == JsonToken.BEGIN_ARRAY) {
                     StringBuilder sb = new StringBuilder();
                     reader.beginArray();
                     while (reader.hasNext()) appendValue(reader, sb);
                     reader.endArray();
-                    if (sb.length() > 0) list.add(sb.toString());
+                    if (sb.length() > 0) addParsedRow(list, sb.toString());
                 } else if (inner == JsonToken.STRING || inner == JsonToken.NUMBER) {
                     String val = reader.nextString();
-                    if (val != null && !val.isEmpty()) list.add(val);
+                    if (val != null && !val.isEmpty()) addParsedRow(list, val);
                 } else {
                     reader.skipValue();
                 }
@@ -213,6 +233,21 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
             reader.endObject();
         } else {
             reader.skipValue();
+        }
+    }
+
+    private void addParsedRow(List<String> list, String row) throws IOException {
+        list.add(row);
+        int count = parsedAddressCount.incrementAndGet();
+        if (count % 1000 == 0) {
+            mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
+            try {
+                // Даём UI время отрисовать промежуточный счётчик до продолжения быстрого разбора.
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Загрузка прервана", e);
+            }
         }
     }
 
@@ -309,6 +344,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        mainHandler.removeCallbacks(progressUpdater);
         super.onDestroy();
         executor.shutdownNow();
     }

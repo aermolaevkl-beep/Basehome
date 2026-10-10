@@ -1,57 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="20dp"
-    android:background="?attr/colorSurface">
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
 
-    <EditText
-        android:id="@+id/etEntranceNum"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Номер подъезда"
-        android:inputType="number"
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@drawable/bg_input_field"
-        android:layout_marginBottom="12dp" />
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <EditText
-        android:id="@+id/etIntercomCode"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Код домофона"
-        android:inputType="textCapSentences"
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@drawable/bg_input_field"
-        android:layout_marginBottom="12dp" />
+        <EditText
+            android:id="@+id/etEntranceNum"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_input_field"
+            android:hint="Номер подъезда"
+            android:inputType="number"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary" />
 
-    <EditText
-        android:id="@+id/etCrossFloor"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Этаж кросса"
-        android:inputType="textCapSentences"
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@drawable/bg_input_field"
-        android:layout_marginBottom="12dp" />
+        <EditText
+            android:id="@+id/etIntercomCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_input_field"
+            android:hint="Код домофона"
+            android:inputType="textCapSentences"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary" />
 
-    <EditText
-        android:id="@+id/etBasementKey"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Ключ от подвала"
-        android:inputType="textCapSentences"
-        android:padding="12dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textColorHint="?android:attr/textColorSecondary"
-        android:background="@drawable/bg_input_field"
-        android:layout_marginBottom="12dp" />
+        <EditText
+            android:id="@+id/etCrossFloor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_input_field"
+            android:hint="Этаж кросса"
+            android:inputType="textCapSentences"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary" />
 
-</LinearLayout>
+        <EditText
+            android:id="@+id/etBasementKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_input_field"
+            android:hint="Ключ от подвала"
+            android:inputType="textCapSentences"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorSecondary" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

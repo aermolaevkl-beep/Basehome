@@ -1,8 +1,20 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.BaseHome" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorSecondary">@color/brand_accent</item>
+        <item name="colorSurface">?android:attr/colorBackground</item>
+        <item name="colorOutline">?android:attr/textColorHint</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.BaseHome.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.BaseHome.Medium</item>
+    </style>
+
+    <style name="ShapeAppearance.BaseHome.Small" parent="ShapeAppearance.Material3.Corner.Small">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.BaseHome.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">20dp</item>
     </style>
 
     <style name="Theme.BaseHome" parent="Base.Theme.BaseHome" />

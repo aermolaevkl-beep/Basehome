@@ -10,8 +10,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -41,7 +42,10 @@ public class MainActivity extends AppCompatActivity {
 
     private View vConnectionIndicator;
     private TextView tvConnectionStatus;
-    private ChipGroup chipGroupCities;
+    private TextView tvSelectedCityName;
+    private View cardCitySelector;
+    private final List<String> availableCities = new ArrayList<>();
+    private String activeCity = CityManager.ALL_CITIES;
     private DatabaseReference userStatusRef;
     private DatabaseReference connectedRef;
     private ValueEventListener connectionListener;
@@ -68,7 +72,11 @@ public class MainActivity extends AppCompatActivity {
 
         vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
-        chipGroupCities = findViewById(R.id.chipGroupCities);
+        tvSelectedCityName = findViewById(R.id.tvSelectedCityName);
+        cardCitySelector = findViewById(R.id.cardCitySelector);
+        if (cardCitySelector != null) {
+            cardCitySelector.setOnClickListener(v -> showCityPickerDialog());
+        }
         
         initIndicatorBackground();
         setupClickListeners();
@@ -121,49 +129,52 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupCitySelector() {
-        if (chipGroupCities == null) return;
-
         CityManager.syncCityFromFirebase(this, currentCity -> {
+            this.activeCity = (currentCity != null) ? currentCity : CityManager.ALL_CITIES;
+            updateCityCardText();
+
             CityManager.loadCitiesFromFirebase(cities -> {
                 if (isFinishing()) return;
-
-                chipGroupCities.removeAllViews();
-
-                List<String> cityOptions = new ArrayList<>();
-                cityOptions.add(CityManager.ALL_CITIES);
+                availableCities.clear();
+                availableCities.add(CityManager.ALL_CITIES);
                 for (String c : cities) {
-                    if (!cityOptions.contains(c)) {
-                        cityOptions.add(c);
+                    if (!availableCities.contains(c)) {
+                        availableCities.add(c);
                     }
-                }
-
-                Chip selectedChip = null;
-
-                for (String city : cityOptions) {
-                    Chip chip = new Chip(this);
-                    boolean isAll = CityManager.ALL_CITIES.equalsIgnoreCase(city);
-                    chip.setText(isAll ? "🌐 " + city : "📍 " + city);
-                    chip.setCheckable(true);
-                    chip.setClickable(true);
-
-                    if (city.equalsIgnoreCase(currentCity)) {
-                        selectedChip = chip;
-                    }
-
-                    chip.setOnClickListener(v -> {
-                        CityManager.setSelectedCity(MainActivity.this, city);
-                    });
-
-                    chipGroupCities.addView(chip);
-                }
-
-                if (selectedChip != null) {
-                    selectedChip.setChecked(true);
-                } else if (chipGroupCities.getChildCount() > 0) {
-                    ((Chip) chipGroupCities.getChildAt(0)).setChecked(true);
                 }
             });
         });
+    }
+
+    private void updateCityCardText() {
+        if (tvSelectedCityName != null) {
+            boolean isAll = CityManager.ALL_CITIES.equalsIgnoreCase(activeCity);
+            tvSelectedCityName.setText(isAll ? "🌐 " + activeCity : "📍 " + activeCity);
+        }
+    }
+
+    private void showCityPickerDialog() {
+        if (availableCities.isEmpty()) {
+            availableCities.add(CityManager.ALL_CITIES);
+            availableCities.add("Могилев");
+            availableCities.add("Бобруйск");
+        }
+
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_city_picker, null);
+        RecyclerView rvCities = dialogView.findViewById(R.id.rvCitiesPicker);
+
+        rvCities.setLayoutManager(new LinearLayoutManager(this));
+        CityPickerAdapter adapter = new CityPickerAdapter(availableCities, activeCity, city -> {
+            activeCity = city;
+            CityManager.setSelectedCity(MainActivity.this, city);
+            updateCityCardText();
+            dialog.dismiss();
+        });
+
+        rvCities.setAdapter(adapter);
+        dialog.setContentView(dialogView);
+        dialog.show();
     }
 
     private void goToLogin() {

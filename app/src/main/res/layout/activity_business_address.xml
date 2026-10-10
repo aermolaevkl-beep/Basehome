@@ -10,7 +10,7 @@
     <!-- Header with Back Button -->
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:paddingHorizontal="16dp">
 
         <ImageButton
@@ -37,18 +37,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
         android:text="Добавить юр. адрес"
-        android:backgroundTint="#FF9800" />
+        android:backgroundTint="?attr/colorSecondary" />
 
     <!-- Поисковая строка -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        app:cardCornerRadius="8dp"
+        app:cardCornerRadius="18dp"
         app:cardElevation="0dp"
         app:strokeWidth="1dp"
-        app:strokeColor="?attr/colorOutline">
+        app:strokeColor="?attr/colorOutlineVariant">
 
         <EditText
             android:id="@+id/etSearchBusiness"
@@ -69,6 +70,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:text="Последние записи:"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:textColor="?android:attr/textColorSecondary" />
 
@@ -102,6 +104,6 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:text="Показать еще 5"
-        android:backgroundTint="#FF9800" />
+        android:backgroundTint="?attr/colorSecondary" />
 
 </LinearLayout>

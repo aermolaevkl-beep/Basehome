@@ -10,7 +10,7 @@
     <!-- Header with Back Button -->
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:paddingHorizontal="16dp">
 
         <ImageButton
@@ -48,8 +48,8 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
+                app:cardCornerRadius="22dp"
+                app:cardElevation="1dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="?attr/colorOutlineVariant"
                 android:layout_marginBottom="16dp">
@@ -57,7 +57,7 @@
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
+                    android:padding="20dp"
                     android:background="?attr/selectableItemBackground">
 
                     <LinearLayout
@@ -233,8 +233,8 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="12dp"
-        android:background="?attr/colorSurface"
-        android:elevation="8dp">
+        android:background="?attr/colorSurfaceContainer"
+        android:elevation="3dp">
         <TextView
             android:id="@+id/tvReplyTo"
             android:layout_width="match_parent"

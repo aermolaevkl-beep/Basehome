@@ -9,7 +9,7 @@
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:paddingHorizontal="16dp">
 
         <ImageButton
@@ -35,7 +35,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
         <TextView
             android:layout_width="match_parent"
@@ -52,10 +52,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:padding="12dp"
-            android:background="@android:drawable/btn_dropdown"
+            android:background="@drawable/bg_input_field"
             android:spinnerMode="dropdown" />
 
-        <EditText
+        <AutoCompleteTextView
             android:id="@+id/etStreet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -84,7 +84,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Создать адрес"
-            android:backgroundTint="#2196F3"
+            android:backgroundTint="?attr/colorPrimary"
             android:textColor="@android:color/white"
             android:padding="12dp"
             android:textStyle="bold" />

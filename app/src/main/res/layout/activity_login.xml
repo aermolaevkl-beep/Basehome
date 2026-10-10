@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="32dp"
+    android:padding="24dp"
     android:background="?android:attr/windowBackground">
 
     <EditText
@@ -16,6 +16,7 @@
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
         android:background="@drawable/bg_input_field"
+        android:minHeight="56dp"
         android:layout_marginBottom="16dp"
         android:inputType="textEmailAddress" />
 
@@ -36,13 +37,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Войти"
-        android:backgroundTint="#4CAF50" />
+        android:backgroundTint="?attr/colorPrimary" />
 
     <TextView
         android:id="@+id/tvError"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#FF0000"
+        android:textColor="?attr/colorError"
         android:layout_marginTop="16dp"
         android:gravity="center"
         android:visibility="gone" />
