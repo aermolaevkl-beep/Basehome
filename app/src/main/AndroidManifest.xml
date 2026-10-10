@@ -40,6 +40,9 @@
         <activity
             android:name=".UsersActivity"
             android:exported="false" />
+        <activity
+            android:name=".AdminActivity"
+            android:exported="false" />
 
         <activity
             android:name=".GoogleDatabaseActivity"

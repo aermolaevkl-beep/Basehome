@@ -384,16 +384,19 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         Spinner spinnerCity = dialogView.findViewById(R.id.spinnerBusinessCity);
         Button btnSave = dialogView.findViewById(R.id.btnSaveBusiness);
 
-        String[] cities = {"Могилев", "Бобруйск"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cities);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCity.setAdapter(adapter);
+        CityManager.loadCitiesFromFirebase(citiesList -> {
+            if (isFinishing()) return;
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, citiesList);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerCity.setAdapter(adapter);
+
+            int cityIndex = citiesList.indexOf(currentBusinessAddress.getCity() != null ? currentBusinessAddress.getCity() : "Могилев");
+            if (cityIndex >= 0) spinnerCity.setSelection(cityIndex);
+        });
 
         etStreet.setText(currentBusinessAddress.getStreet());
         etHouse.setText(currentBusinessAddress.getHouse());
         etCenter.setText(currentBusinessAddress.getCenterName());
-        int cityIndex = "Бобруйск".equals(currentBusinessAddress.getCity()) ? 1 : 0;
-        spinnerCity.setSelection(cityIndex);
         
         btnSave.setVisibility(View.GONE);
 

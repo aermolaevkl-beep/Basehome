@@ -98,5 +98,17 @@
             </LinearLayout>
         </LinearLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnToggleAdminStatus"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_marginTop="8dp"
+            android:layout_gravity="end"
+            android:text="Права: Пользователь"
+            android:textSize="11sp"
+            app:strokeColor="#9C27B0"
+            android:textColor="#9C27B0" />
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

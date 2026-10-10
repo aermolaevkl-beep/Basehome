@@ -2,6 +2,8 @@ package com.example.basehome
 
 import android.os.Bundle
 import android.widget.ImageButton
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -26,14 +28,26 @@ class UsersActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBackUsers).setOnClickListener { finish() }
 
         rvUsers.layoutManager = LinearLayoutManager(this)
-        adapter = UsersAdapter(usersList)
+        adapter = UsersAdapter(usersList) { user, newAdminState ->
+            val actionText = if (newAdminState) "Назначить ${user.name} администратором?" else "Снять права администратора у ${user.name}?"
+            AlertDialog.Builder(this)
+                .setTitle("Изменение прав")
+                .setMessage(actionText)
+                .setPositiveButton("Да") { _, _ ->
+                    database.getReference("users").child(user.uid).child("isAdmin").setValue(newAdminState)
+                        .addOnSuccessListener {
+                            Toast.makeText(this, "Права изменены", Toast.LENGTH_SHORT).show()
+                        }
+                }
+                .setNegativeButton("Отмена", null)
+                .show()
+        }
         rvUsers.adapter = adapter
 
         loadData()
     }
 
     private fun loadData() {
-        // Загружаем статистику один раз, чтобы не перегружать сеть
         database.getReference("addresses").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 for (item in snapshot.children) {
@@ -53,7 +67,6 @@ class UsersActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        // Только теперь запускаем постоянный мониторинг статуса пользователей
                         listenToUsers()
                     }
                     override fun onCancelled(error: DatabaseError) {}
@@ -64,7 +77,6 @@ class UsersActivity : AppCompatActivity() {
     }
 
     private fun listenToUsers() {
-        // Слушаем список пользователей постоянно (для онлайн-статуса)
         database.getReference("users").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val newList = mutableListOf<UserDetail>()
@@ -74,6 +86,7 @@ class UsersActivity : AppCompatActivity() {
                     val email = u.child("email").getValue(String::class.java) ?: ""
                     val isOnline = u.child("isOnline").getValue(Boolean::class.java) ?: false
                     val lastSeen = u.child("lastSeen").getValue(Long::class.java) ?: 0L
+                    val isAdmin = u.child("isAdmin").getValue(Boolean::class.java) ?: false
 
                     newList.add(UserDetail(
                         uid = uid,
@@ -82,11 +95,11 @@ class UsersActivity : AppCompatActivity() {
                         addressCount = addressCounts[uid] ?: 0,
                         commentCount = commentCounts[uid] ?: 0,
                         isOnline = isOnline,
-                        lastSeen = lastSeen
+                        lastSeen = lastSeen,
+                        isAdmin = isAdmin
                     ))
                 }
                 
-                // Сортировка: сначала онлайн, потом по количеству вклада
                 newList.sortWith(compareByDescending<UserDetail> { it.isOnline }.thenByDescending { it.addressCount })
                 adapter.updateList(newList)
             }

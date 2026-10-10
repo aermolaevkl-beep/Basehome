@@ -7,5 +7,6 @@ data class UserDetail(
     val addressCount: Int = 0,
     val commentCount: Int = 0,
     val isOnline: Boolean = false,
-    val lastSeen: Long = 0
+    val lastSeen: Long = 0,
+    val isAdmin: Boolean = false
 )

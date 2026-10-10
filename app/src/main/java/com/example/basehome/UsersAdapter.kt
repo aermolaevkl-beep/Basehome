@@ -9,10 +9,12 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import java.util.*
+import com.google.android.material.button.MaterialButton
 
-class UsersAdapter(private var users: List<UserDetail>) :
-    RecyclerView.Adapter<UsersAdapter.ViewHolder>() {
+class UsersAdapter(
+    private var users: List<UserDetail>,
+    private val onAdminToggle: (UserDetail, Boolean) -> Unit
+) : RecyclerView.Adapter<UsersAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tvUserDetailName)
@@ -21,6 +23,7 @@ class UsersAdapter(private var users: List<UserDetail>) :
         val tvComments: TextView = view.findViewById(R.id.tvUserDetailCommentCount)
         val vStatus: View = view.findViewById(R.id.vOnlineStatus)
         val tvLastSeen: TextView = view.findViewById(R.id.tvLastSeen)
+        val btnToggleAdminStatus: MaterialButton = view.findViewById(R.id.btnToggleAdminStatus)
     }
 
     fun updateList(newList: List<UserDetail>) {
@@ -68,6 +71,20 @@ class UsersAdapter(private var users: List<UserDetail>) :
             } else {
                 holder.tvLastSeen.text = "не заходил(а)"
             }
+        }
+
+        if (user.isAdmin) {
+            holder.btnToggleAdminStatus.text = "👑 АДМИНИСТРАТОР"
+            holder.btnToggleAdminStatus.setStrokeColorResource(android.R.color.holo_purple)
+            holder.btnToggleAdminStatus.setTextColor(ContextCompat.getColor(holder.itemView.context, android.R.color.holo_purple))
+        } else {
+            holder.btnToggleAdminStatus.text = "Права: Пользователь"
+            holder.btnToggleAdminStatus.setStrokeColorResource(android.R.color.darker_gray)
+            holder.btnToggleAdminStatus.setTextColor(ContextCompat.getColor(holder.itemView.context, android.R.color.darker_gray))
+        }
+
+        holder.btnToggleAdminStatus.setOnClickListener {
+            onAdminToggle(user, !user.isAdmin)
         }
     }
 

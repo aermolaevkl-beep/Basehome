@@ -40,11 +40,21 @@ public class AddAddressActivity extends AppCompatActivity {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        String[] cities = {"Могилев", "Бобруйск"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cities);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCity.setAdapter(adapter);
-        spinnerCity.setSelection(0);
+        String activeCity = CityManager.getSelectedCity(this);
+
+        CityManager.loadCitiesFromFirebase(cities -> {
+            if (isFinishing()) return;
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cities);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerCity.setAdapter(adapter);
+
+            if (!CityManager.ALL_CITIES.equalsIgnoreCase(activeCity)) {
+                int index = cities.indexOf(activeCity);
+                if (index >= 0) {
+                    spinnerCity.setSelection(index);
+                }
+            }
+        });
 
         btnSave.setOnClickListener(v -> saveAddress());
     }

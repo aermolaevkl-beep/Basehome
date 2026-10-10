@@ -10,6 +10,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -38,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     private View vConnectionIndicator;
     private TextView tvConnectionStatus;
+    private ChipGroup chipGroupCities;
     private DatabaseReference userStatusRef;
     private DatabaseReference connectedRef;
     private ValueEventListener connectionListener;
@@ -64,9 +68,11 @@ public class MainActivity extends AppCompatActivity {
 
         vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
+        chipGroupCities = findViewById(R.id.chipGroupCities);
         
         initIndicatorBackground();
         setupClickListeners();
+        setupCitySelector();
         
         updateManager = new UpdateManager(this);
         setupRemoteConfig();
@@ -94,10 +100,70 @@ public class MainActivity extends AppCompatActivity {
             goToLogin();
         });
 
-        findViewById(R.id.btnProfile).setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
+        findViewById(R.id.btnProfile).setOnClickListener(v -> {
+            if (currentUser != null) {
+                FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid()).child("isAdmin")
+                        .get().addOnSuccessListener(snapshot -> {
+                            Boolean isAdmin = snapshot.getValue(Boolean.class);
+                            if (Boolean.TRUE.equals(isAdmin)) {
+                                startActivity(new Intent(this, AdminActivity.class));
+                            } else {
+                                startActivity(new Intent(this, ProfileActivity.class));
+                            }
+                        }).addOnFailureListener(e -> startActivity(new Intent(this, ProfileActivity.class)));
+            } else {
+                startActivity(new Intent(this, ProfileActivity.class));
+            }
+        });
         findViewById(R.id.btnPhysicalSection).setOnClickListener(v -> startActivity(new Intent(this, PhysicalAddressActivity.class)));
         findViewById(R.id.btnBusinessSection).setOnClickListener(v -> startActivity(new Intent(this, BusinessAddressActivity.class)));
         findViewById(R.id.btnDatabase).setOnClickListener(v -> startActivity(new Intent(this, GoogleDatabaseActivity.class)));
+    }
+
+    private void setupCitySelector() {
+        if (chipGroupCities == null) return;
+
+        CityManager.syncCityFromFirebase(this, currentCity -> {
+            CityManager.loadCitiesFromFirebase(cities -> {
+                if (isFinishing()) return;
+
+                chipGroupCities.removeAllViews();
+
+                List<String> cityOptions = new ArrayList<>();
+                cityOptions.add(CityManager.ALL_CITIES);
+                for (String c : cities) {
+                    if (!cityOptions.contains(c)) {
+                        cityOptions.add(c);
+                    }
+                }
+
+                Chip selectedChip = null;
+
+                for (String city : cityOptions) {
+                    Chip chip = new Chip(this);
+                    boolean isAll = CityManager.ALL_CITIES.equalsIgnoreCase(city);
+                    chip.setText(isAll ? "🌐 " + city : "📍 " + city);
+                    chip.setCheckable(true);
+                    chip.setClickable(true);
+
+                    if (city.equalsIgnoreCase(currentCity)) {
+                        selectedChip = chip;
+                    }
+
+                    chip.setOnClickListener(v -> {
+                        CityManager.setSelectedCity(MainActivity.this, city);
+                    });
+
+                    chipGroupCities.addView(chip);
+                }
+
+                if (selectedChip != null) {
+                    selectedChip.setChecked(true);
+                } else if (chipGroupCities.getChildCount() > 0) {
+                    ((Chip) chipGroupCities.getChildAt(0)).setChecked(true);
+                }
+            });
+        });
     }
 
     private void goToLogin() {

@@ -138,20 +138,30 @@ public class BusinessAddressActivity extends AppCompatActivity {
     }
 
     private void filterAddresses(String query) {
+        String selectedCity = CityManager.getSelectedCity(this);
+
+        List<BusinessAddress> cityAddresses = new ArrayList<>();
+        for (BusinessAddress address : allAddresses) {
+            String city = address.getCity() != null ? address.getCity() : "Могилев";
+            if (CityManager.ALL_CITIES.equalsIgnoreCase(selectedCity) || city.equalsIgnoreCase(selectedCity)) {
+                cityAddresses.add(address);
+            }
+        }
+
         List<BusinessAddress> filtered = new ArrayList<>();
         String lowerQuery = query.toLowerCase().trim();
 
         if (lowerQuery.isEmpty()) {
-            int limit = Math.min(currentLimit, allAddresses.size());
+            int limit = Math.min(currentLimit, cityAddresses.size());
             for (int i = 0; i < limit; i++) {
-                filtered.add(allAddresses.get(i));
+                filtered.add(cityAddresses.get(i));
             }
             tvSectionTitle.setText("Последние записи:");
-            btnViewMore.setVisibility(allAddresses.size() > currentLimit ? View.VISIBLE : View.GONE);
+            btnViewMore.setVisibility(cityAddresses.size() > currentLimit ? View.VISIBLE : View.GONE);
         } else {
             btnViewMore.setVisibility(View.GONE);
             tvSectionTitle.setText("Результаты поиска:");
-            for (BusinessAddress address : allAddresses) {
+            for (BusinessAddress address : cityAddresses) {
                 if (matches(address, lowerQuery)) {
                     filtered.add(address);
                 }
@@ -168,6 +178,12 @@ public class BusinessAddressActivity extends AppCompatActivity {
         }
 
         adapter.updateList(filtered);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        filterAddresses(etSearch.getText().toString());
     }
 
     private boolean matches(BusinessAddress address, String query) {

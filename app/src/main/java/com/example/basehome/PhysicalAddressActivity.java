@@ -145,20 +145,30 @@ public class PhysicalAddressActivity extends AppCompatActivity {
     }
 
     private void filterAddresses(String query) {
+        String selectedCity = CityManager.getSelectedCity(this);
+
+        List<Address> cityAddresses = new ArrayList<>();
+        for (Address address : allAddresses) {
+            String city = address.getCity() != null ? address.getCity() : "Могилев";
+            if (CityManager.ALL_CITIES.equalsIgnoreCase(selectedCity) || city.equalsIgnoreCase(selectedCity)) {
+                cityAddresses.add(address);
+            }
+        }
+
         List<Address> filtered = new ArrayList<>();
         String lowerQuery = query.toLowerCase().trim();
         
         if (lowerQuery.isEmpty()) {
-            int limit = Math.min(currentLimit, allAddresses.size());
+            int limit = Math.min(currentLimit, cityAddresses.size());
             for (int i = 0; i < limit; i++) {
-                filtered.add(allAddresses.get(i));
+                filtered.add(cityAddresses.get(i));
             }
-            tvSectionTitle.setText(allAddresses.isEmpty() ? "" : "Последние записи:");
-            btnViewAll.setVisibility(allAddresses.size() > currentLimit ? View.VISIBLE : View.GONE);
+            tvSectionTitle.setText(cityAddresses.isEmpty() ? "" : "Последние записи:");
+            btnViewAll.setVisibility(cityAddresses.size() > currentLimit ? View.VISIBLE : View.GONE);
         } else {
             btnViewAll.setVisibility(View.GONE);
             tvSectionTitle.setText("Результаты поиска:");
-            for (Address address : allAddresses) {
+            for (Address address : cityAddresses) {
                 String street = address.getStreet() != null ? address.getStreet().toLowerCase() : "";
                 String house = address.getHouse() != null ? address.getHouse().toLowerCase() : "";
                 if (street.contains(lowerQuery) || house.contains(lowerQuery)) {
@@ -177,5 +187,11 @@ public class PhysicalAddressActivity extends AppCompatActivity {
         }
         
         adapter.updateList(filtered);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        filterAddresses(etSearch.getText().toString());
     }
 }

@@ -252,13 +252,15 @@ class AddressDetailActivity : AppCompatActivity() {
         val etStreet = view.findViewById<EditText>(R.id.etStreetEdit)
         val etHouse = view.findViewById<EditText>(R.id.etHouseEdit)
 
-        val cities = arrayOf("Могилев", "Бобруйск")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, cities)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerCity.adapter = adapter
-        
-        val cityIndex = cities.indexOf(address.city ?: "Могилев")
-        if (cityIndex >= 0) spinnerCity.setSelection(cityIndex)
+        CityManager.loadCitiesFromFirebase { citiesList ->
+            if (isFinishing) return@loadCitiesFromFirebase
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, citiesList)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinnerCity.adapter = adapter
+
+            val cityIndex = citiesList.indexOf(address.city ?: "Могилев")
+            if (cityIndex >= 0) spinnerCity.setSelection(cityIndex)
+        }
         
         etStreet.setText(address.street)
         etHouse.setText(address.house)

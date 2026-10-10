@@ -76,40 +76,72 @@
         </LinearLayout>
     </RelativeLayout>
 
+    <!-- City Selection Section (Horizontal Chips) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Выберите город:"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:overScrollMode="never">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupCities"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                app:singleLine="true" />
+        </HorizontalScrollView>
+    </LinearLayout>
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
         android:text="Выберите раздел:"
-        android:textSize="20sp"
-        android:textStyle="bold"
         android:textColor="?android:attr/textColorPrimary"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/btnPhysicalSection"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:text="Физ. адреса"
-        android:textSize="18sp"
-        android:backgroundTint="#2196F3"
-        android:layout_marginBottom="16dp" />
+        android:textSize="20sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/btnBusinessSection"
         android:layout_width="match_parent"
         android:layout_height="80dp"
-        android:text="Юр. адреса"
-        android:textSize="18sp"
+        android:layout_marginBottom="16dp"
         android:backgroundTint="#FF9800"
-        android:layout_marginBottom="16dp" />
+        android:text="Юр. адреса"
+        android:textSize="18sp" />
+
+    <Button
+        android:id="@+id/btnPhysicalSection"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#2196F3"
+        android:text="Физ. адреса"
+        android:textSize="18sp" />
 
     <Button
         android:id="@+id/btnDatabase"
         android:layout_width="match_parent"
         android:layout_height="80dp"
+        android:backgroundTint="#4CAF50"
         android:text="База данных"
-        android:textSize="18sp"
-        android:backgroundTint="#4CAF50" />
+        android:textSize="18sp" />
 
 </LinearLayout>
