@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvConnectionStatus;
     private TextView tvSelectedCityName;
     private View cardCitySelector;
+    private View btnDatabase;
     private final List<String> availableCities = new ArrayList<>();
     private String activeCity = CityManager.ALL_CITIES;
     private DatabaseReference userStatusRef;
@@ -74,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         tvSelectedCityName = findViewById(R.id.tvSelectedCityName);
         cardCitySelector = findViewById(R.id.cardCitySelector);
+        btnDatabase = findViewById(R.id.btnDatabase);
         if (cardCitySelector != null) {
             cardCitySelector.setOnClickListener(v -> showCityPickerDialog());
         }
@@ -150,6 +152,11 @@ public class MainActivity extends AppCompatActivity {
         if (tvSelectedCityName != null) {
             boolean isAll = CityManager.ALL_CITIES.equalsIgnoreCase(activeCity);
             tvSelectedCityName.setText(isAll ? "🌐 " + activeCity : "📍 " + activeCity);
+        }
+        if (btnDatabase != null) {
+            boolean showDatabase = "Могилев".equalsIgnoreCase(activeCity)
+                    || CityManager.ALL_CITIES.equalsIgnoreCase(activeCity);
+            btnDatabase.setVisibility(showDatabase ? View.VISIBLE : View.GONE);
         }
     }
 

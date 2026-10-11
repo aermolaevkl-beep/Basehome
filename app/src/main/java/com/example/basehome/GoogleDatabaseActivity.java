@@ -310,35 +310,72 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     if (Thread.currentThread().isInterrupted()) return;
                     String searchArea = address.getStreetHouse().toLowerCase(Locale.ROOT);
                     boolean match = true;
+                    
                     for (String word : words) {
                         if (word.isEmpty()) continue;
-                        if (word.matches("\\d+")) {
-                            if (!containsWholeHouseNumber(searchArea, word) && !containsVisitNumber(address.getVisits(), word)) {
+                        
+                        if (word.contains("-")) {
+                            String[] parts = word.split("-");
+                            for (String p : parts) {
+                                if (p.matches("\\d+")) {
+                                    if (!containsWholeHouseNumber(searchArea, p) && !containsVisitNumber(address.getVisits(), p)) {
+                                        match = false;
+                                        break;
+                                    }
+                                } else if (!searchArea.contains(p)) {
+                                    match = false;
+                                    break;
+                                }
+                            }
+                        } else if (word.matches("\\d+")) {
+                            // Ограничиваем поиск номера дома по названию дома/улицы, чтобы не выводить посторонние дома
+                            if (!containsWholeHouseNumber(searchArea, word)) {
                                 match = false;
                                 break;
                             }
-                        } else if (!searchArea.contains(word) && !containsVisitWord(address.getVisits(), word)) {
-                            match = false;
-                            break;
+                        } else {
+                            if (!searchArea.contains(word)) {
+                                match = false;
+                                break;
+                            }
                         }
                     }
                     if (match) result.add(address);
                 }
+                
+                // Сортировка результатов: сначала по улице, затем по номеру дома
+                result.sort((a1, a2) -> compareHouses(a1.getStreetHouse(), a2.getStreetHouse()));
             }
             mainHandler.post(() -> adapter.updateList(result));
         });
     }
 
+    private static int compareHouses(String h1, String h2) {
+        String street1 = h1.replaceAll("\\d+.*", "").trim();
+        String street2 = h2.replaceAll("\\d+.*", "").trim();
+        int streetComp = street1.compareToIgnoreCase(street2);
+        if (streetComp != 0) return streetComp;
+
+        int num1 = extractHouseNumber(h1);
+        int num2 = extractHouseNumber(h2);
+        if (num1 != num2) return Integer.compare(num1, num2);
+
+        return h1.compareToIgnoreCase(h2);
+    }
+
+    private static int extractHouseNumber(String address) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d+)\\b").matcher(address);
+        if (m.find()) {
+            try {
+                return Integer.parseInt(m.group(1));
+            } catch (Exception ignored) {}
+        }
+        return 0;
+    }
+
     private boolean containsVisitNumber(List<String> visits, String number) {
         for (String v : visits) {
             if (containsWholeHouseNumber(v.toLowerCase(Locale.ROOT), number)) return true;
-        }
-        return false;
-    }
-
-    private boolean containsVisitWord(List<String> visits, String word) {
-        for (String v : visits) {
-            if (v.toLowerCase(Locale.ROOT).contains(word)) return true;
         }
         return false;
     }
