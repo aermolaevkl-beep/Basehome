@@ -9,6 +9,7 @@ public class GoogleAddressEntity {
     @PrimaryKey(autoGenerate = true)
     private int id;
     
+    private String city;
     private String fullText;
     private String streetHouse;
     private String streetHouseKey;
@@ -17,7 +18,8 @@ public class GoogleAddressEntity {
     public GoogleAddressEntity() {}
 
     @Ignore
-    public GoogleAddressEntity(String fullText, String streetHouse, String streetHouseKey, String apartment) {
+    public GoogleAddressEntity(String city, String fullText, String streetHouse, String streetHouseKey, String apartment) {
+        this.city = city;
         this.fullText = fullText;
         this.streetHouse = streetHouse;
         this.streetHouseKey = streetHouseKey;
@@ -26,6 +28,9 @@ public class GoogleAddressEntity {
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
+    public String getCity() { return city != null ? city : "Могилев"; }
+    public void setCity(String city) { this.city = city; }
     
     public String getFullText() { return fullText != null ? fullText : ""; }
     public void setFullText(String fullText) { this.fullText = fullText; }

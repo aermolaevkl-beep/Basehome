@@ -22,7 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,8 +64,9 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     };
     private Future<?> searchTask;
     private AppDatabase db;
+    private String targetCity = "Могилев";
 
-    private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycw5i6R-069SPtLO1EsCI1gZ8v4qWDtC-aBvjdC6Kxdyn2oCACoXN6V-MRQYxVe64d/exec";
+    private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBs8rnv_krynJVIXX3jDWF2RlWm4f0vS852NIGt23gxUMPZB0JACVcDWa4WCNhkjxO/exec";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +74,11 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         setContentView(R.layout.activity_google_database);
 
         db = AppDatabase.getInstance(this);
+        String extraCity = getIntent().getStringExtra("city");
+        if (extraCity != null && !extraCity.trim().isEmpty() && !CityManager.ALL_CITIES.equalsIgnoreCase(extraCity)) {
+            targetCity = extraCity.trim();
+        }
+
         etSearch = findViewById(R.id.etSearchDatabase);
         llLoadingContainer = findViewById(R.id.llLoadingContainer);
         tvLoadingMessage = findViewById(R.id.tvLoadingMessage);
@@ -88,7 +94,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         btnUpdate.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
                 .setTitle("Обновление")
-                .setMessage("Загрузить свежую базу из Google Таблиц? Это может занять время.")
+                .setMessage("Загрузить свежую базу для г. " + targetCity + " из Google Таблиц?")
                 .setPositiveButton("Да", (d, w) -> loadDataFromNetwork())
                 .setNegativeButton("Отмена", null)
                 .show();
@@ -118,7 +124,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         etSearch.setEnabled(false);
 
         executor.execute(() -> {
-            List<GoogleAddressEntity> entities = db.googleAddressDao().getAllEntities();
+            List<GoogleAddressEntity> entities = db.googleAddressDao().getEntitiesForCity(targetCity);
             if (entities != null && !entities.isEmpty()) {
                 List<GoogleAddressEntity> validEntities = new ArrayList<>(entities.size());
                 for (GoogleAddressEntity entity : entities) {
@@ -165,7 +171,12 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                 .followRedirects(true)
                 .build();
 
-        client.newCall(new Request.Builder().url(SCRIPT_URL).build()).enqueue(new Callback() {
+        String url = SCRIPT_URL;
+        try {
+            url = SCRIPT_URL + "?city=" + java.net.URLEncoder.encode(targetCity, StandardCharsets.UTF_8.name());
+        } catch (Exception ignored) {}
+
+        client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 showError("Ошибка сети: " + e.getLocalizedMessage());
@@ -192,7 +203,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     }
 
                     List<String> temp = new ArrayList<>(65000);
-                    try (JsonReader reader = new JsonReader(new java.io.StringReader(trimmed))) {
+                    try (JsonReader reader = new JsonReader(new StringReader(trimmed))) {
                         reader.setLenient(true);
                         recursiveParse(reader, temp);
                     }
@@ -202,7 +213,6 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     mainHandler.post(() -> tvLoadingMessage.setText(
                             "Получено " + totalRows + " адресов. Сохранение в базу..."));
 
-                    // Сохраняем в Room в фоновом потоке внутри одной транзакции
                     executor.execute(() -> {
                         List<GoogleAddressEntity> entities = new ArrayList<>(temp.size());
                         for (String row : temp) {
@@ -211,11 +221,11 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                             if (house.isEmpty()) continue;
                             String key = ga.getStreetHouseKey();
                             if (key.isEmpty()) continue;
-                            entities.add(new GoogleAddressEntity(row, house, key, ga.getApartment()));
+                            entities.add(new GoogleAddressEntity(targetCity, row, house, key, ga.getApartment()));
                         }
 
                         db.runInTransaction(() -> {
-                            db.googleAddressDao().deleteAll();
+                            db.googleAddressDao().deleteForCity(targetCity);
                             db.googleAddressDao().insertAll(entities);
                         });
                         
@@ -224,7 +234,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                             llLoadingContainer.setVisibility(View.GONE);
                             etSearch.setEnabled(true);
                             performSimpleSearch(etSearch.getText().toString());
-                            Toast.makeText(GoogleDatabaseActivity.this, "База обновлена и сохранена!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(GoogleDatabaseActivity.this, "База для г. " + targetCity + " обновлена!", Toast.LENGTH_SHORT).show();
                         });
                     });
 
@@ -295,7 +305,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
 
         list.add(trimmed);
         int count = parsedAddressCount.incrementAndGet();
-        if (count % 5000 == 0) {
+        if (count % 2000 == 0) {
             mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
         }
     }
@@ -375,7 +385,6 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                                 }
                             }
                         } else if (word.matches("\\d+")) {
-                            // Ограничиваем поиск номера дома по названию дома/улицы, чтобы не выводить посторонние дома
                             if (!containsWholeHouseNumber(searchArea, word)) {
                                 match = false;
                                 break;
@@ -390,7 +399,6 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     if (match) result.add(address);
                 }
                 
-                // Сортировка результатов: сначала по улице, затем по номеру дома
                 result.sort((a1, a2) -> compareHouses(a1.getStreetHouse(), a2.getStreetHouse()));
             }
             mainHandler.post(() -> adapter.updateList(result));

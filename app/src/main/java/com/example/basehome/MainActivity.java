@@ -127,7 +127,11 @@ public class MainActivity extends AppCompatActivity {
         });
         findViewById(R.id.btnPhysicalSection).setOnClickListener(v -> startActivity(new Intent(this, PhysicalAddressActivity.class)));
         findViewById(R.id.btnBusinessSection).setOnClickListener(v -> startActivity(new Intent(this, BusinessAddressActivity.class)));
-        findViewById(R.id.btnDatabase).setOnClickListener(v -> startActivity(new Intent(this, GoogleDatabaseActivity.class)));
+        findViewById(R.id.btnDatabase).setOnClickListener(v -> {
+            Intent intent = new Intent(this, GoogleDatabaseActivity.class);
+            intent.putExtra("city", activeCity);
+            startActivity(intent);
+        });
     }
 
     private void setupCitySelector() {
@@ -154,9 +158,7 @@ public class MainActivity extends AppCompatActivity {
             tvSelectedCityName.setText(isAll ? "🌐 " + activeCity : "📍 " + activeCity);
         }
         if (btnDatabase != null) {
-            boolean showDatabase = "Могилев".equalsIgnoreCase(activeCity)
-                    || CityManager.ALL_CITIES.equalsIgnoreCase(activeCity);
-            btnDatabase.setVisibility(showDatabase ? View.VISIBLE : View.GONE);
+            btnDatabase.setVisibility(View.VISIBLE);
         }
     }
 
