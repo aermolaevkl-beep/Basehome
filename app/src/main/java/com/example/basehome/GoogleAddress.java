@@ -2,8 +2,42 @@ package com.example.basehome;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GoogleAddress {
+
+    private static final Pattern KW_PATTERN = Pattern.compile(
+            "(?i)(.*?)\\s*,?\\s*\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*[0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?"
+    );
+    private static final Pattern DASH_PATTERN = Pattern.compile(
+            "(?i)^([^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?)\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
+    );
+    private static final Pattern APT_KW_PATTERN = Pattern.compile(
+            "(?i)\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*([0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?)"
+    );
+    private static final Pattern APT_DASH_PATTERN = Pattern.compile(
+            "(?i)^[^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
+    );
+    private static final Pattern PREFIX_PATTERN = Pattern.compile(
+            "(?i)\\b(?:ул|улица|д|дом|пер|переулок|пр-т|проспект)\\.?\\b"
+    );
+    private static final Pattern NON_ALPHANUM_PATTERN = Pattern.compile(
+            "[^\\p{L}\\p{N}]"
+    );
+    private static final Pattern TRAILING_CLEAN_PATTERN = Pattern.compile(
+            "[,;\\s-]+$"
+    );
+    private static final Pattern APT_PART_PATTERN = Pattern.compile(
+            "(?i)^\\s*(?:кв(?:артира)?|кв-ра|apt|apartment)\\b.*|^\\s*№?\\s*кв\\.?\\s*.*"
+    );
+    private static final Pattern HOUSE_PART_PATTERN = Pattern.compile(
+            "(?i)^\\s*(?:д(?:ом)?\\.?\\s*)?\\d+[\\p{L}]?(?:[-/ ]\\d+[\\p{L}]?)?\\s*$"
+    );
+    private static final Pattern DIGITS_PATTERN = Pattern.compile(
+            ".*\\d+.*"
+    );
+
     @SerializedName("street")
     private String street;
 
@@ -55,9 +89,7 @@ public class GoogleAddress {
         }
 
         // 1. Поиск явных ключевых слов квартиры (кв, квартира, кв-ра, apt)
-        java.util.regex.Matcher kwMatcher = java.util.regex.Pattern.compile(
-                "(?i)(.*?)\\s*,?\\s*\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*[0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?"
-        ).matcher(normalized);
+        Matcher kwMatcher = KW_PATTERN.matcher(normalized);
         if (kwMatcher.find()) {
             String candidate = kwMatcher.group(1);
             if (candidate != null && !candidate.trim().isEmpty()) {
@@ -67,9 +99,7 @@ public class GoogleAddress {
         }
 
         // 2. Поиск формата улица дом-квартира (например "кулешова 22-14" или "ул. Кулешова, 22-14")
-        java.util.regex.Matcher dashMatcher = java.util.regex.Pattern.compile(
-                "(?i)^([^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?)\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
-        ).matcher(normalized);
+        Matcher dashMatcher = DASH_PATTERN.matcher(normalized);
         if (dashMatcher.find()) {
             String candidate = dashMatcher.group(1);
             if (candidate != null && !candidate.trim().isEmpty()) {
@@ -99,15 +129,15 @@ public class GoogleAddress {
     private static String cleanAddressString(String input) {
         if (input == null) return "";
         String result = input.trim();
-        return result.replaceAll("[,;\\s-]+$", "").trim();
+        return TRAILING_CLEAN_PATTERN.matcher(result).replaceAll("").trim();
     }
 
     public String getStreetHouseKey() {
         if (cachedStreetHouseKey != null) return cachedStreetHouseKey;
 
         String streetHouse = getStreetHouse().toLowerCase(java.util.Locale.ROOT);
-        streetHouse = streetHouse.replaceAll("(?i)\\b(?:ул|улица|д|дом|пер|переулок|пр-т|проспект)\\.?\\b", "");
-        cachedStreetHouseKey = streetHouse.replaceAll("[^\\p{L}\\p{N}]", "");
+        streetHouse = PREFIX_PATTERN.matcher(streetHouse).replaceAll("");
+        cachedStreetHouseKey = NON_ALPHANUM_PATTERN.matcher(streetHouse).replaceAll("");
         return cachedStreetHouseKey;
     }
 
@@ -122,9 +152,7 @@ public class GoogleAddress {
         }
 
         // 1. Поиск явных ключевых слов квартиры (кв, квартира)
-        java.util.regex.Matcher kwMatcher = java.util.regex.Pattern.compile(
-                "(?i)\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*([0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?)"
-        ).matcher(normalized);
+        Matcher kwMatcher = APT_KW_PATTERN.matcher(normalized);
         if (kwMatcher.find()) {
             String apt = kwMatcher.group(1);
             cachedApartment = apt != null ? apt.trim() : "";
@@ -132,9 +160,7 @@ public class GoogleAddress {
         }
 
         // 2. Поиск формата дом-квартира ("кулешова 22-14")
-        java.util.regex.Matcher dashMatcher = java.util.regex.Pattern.compile(
-                "(?i)^[^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
-        ).matcher(normalized);
+        Matcher dashMatcher = APT_DASH_PATTERN.matcher(normalized);
         if (dashMatcher.find()) {
             String apt = dashMatcher.group(1);
             cachedApartment = apt != null ? apt.trim() : "";
@@ -176,16 +202,15 @@ public class GoogleAddress {
     }
 
     private static boolean isApartmentPart(String value) {
-        return value.matches("(?i)^\\s*(?:кв(?:артира)?|кв-ра|apt|apartment)\\b.*")
-                || value.matches("(?i)^\\s*№?\\s*кв\\.?\\s*.*");
+        return APT_PART_PATTERN.matcher(value).matches();
     }
 
     private static boolean isHousePart(String value) {
-        return value.matches("(?i)^\\s*(?:д(?:ом)?\\.?\\s*)?\\d+[\\p{L}]?(?:[-/ ]\\d+[\\p{L}]?)?\\s*$");
+        return HOUSE_PART_PATTERN.matcher(value).matches();
     }
 
     private static boolean containsHouseNumber(String value) {
-        return value.matches("(?i).*\\d+.*");
+        return DIGITS_PATTERN.matcher(value).matches();
     }
 
     @Override

@@ -65,7 +65,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private Future<?> searchTask;
     private AppDatabase db;
 
-    private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwKWZ4aC1wkE7yvkijqdNZVaOPx0K25JWwh6BmV7G_DvryUmqE3hsuzakqdrSVeHTWR/exec";
+    private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycw5i6R-069SPtLO1EsCI1gZ8v4qWDtC-aBvjdC6Kxdyn2oCACoXN6V-MRQYxVe64d/exec";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +120,26 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         executor.execute(() -> {
             List<GoogleAddressEntity> entities = db.googleAddressDao().getAllEntities();
             if (entities != null && !entities.isEmpty()) {
-                cachedGroupedAddresses = groupAddressesFromEntities(entities);
+                List<GoogleAddressEntity> validEntities = new ArrayList<>(entities.size());
+                for (GoogleAddressEntity entity : entities) {
+                    String fullText = entity.getFullText();
+                    String key = entity.getStreetHouseKey();
+                    String house = entity.getStreetHouse();
+                    if (key.isEmpty() || house.isEmpty()) {
+                        GoogleAddress ga = new GoogleAddress(fullText);
+                        house = ga.getStreetHouse();
+                        key = ga.getStreetHouseKey();
+                        if (!house.isEmpty() && !key.isEmpty()) {
+                            entity.setStreetHouse(house);
+                            entity.setStreetHouseKey(key);
+                            entity.setApartment(ga.getApartment());
+                        }
+                    }
+                    if (!key.isEmpty()) {
+                        validEntities.add(entity);
+                    }
+                }
+                cachedGroupedAddresses = groupAddressesFromEntities(validEntities);
                 runOnUiThread(() -> {
                     llLoadingContainer.setVisibility(View.GONE);
                     etSearch.setEnabled(true);
@@ -160,10 +179,20 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                 }
 
                 try (ResponseBody body = response.body()) {
-                    if (body == null) return;
+                    if (body == null) {
+                        showError("Пустой ответ от сервера Google");
+                        return;
+                    }
+
+                    String rawContent = body.string();
+                    String trimmed = rawContent.trim();
+                    if (trimmed.startsWith("<") || trimmed.toLowerCase(Locale.ROOT).contains("<html")) {
+                        showError("Гугл Скрипт вернул HTML-страницу вместо JSON.\nПроверьте права доступа в Google Apps Script: должно стоять 'Кто имеет доступ' -> 'Все пользователи' (Anyone).");
+                        return;
+                    }
 
                     List<String> temp = new ArrayList<>(65000);
-                    try (JsonReader reader = new JsonReader(new InputStreamReader(body.byteStream(), StandardCharsets.UTF_8))) {
+                    try (JsonReader reader = new JsonReader(new java.io.StringReader(trimmed))) {
                         reader.setLenient(true);
                         recursiveParse(reader, temp);
                     }
@@ -173,16 +202,22 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     mainHandler.post(() -> tvLoadingMessage.setText(
                             "Получено " + totalRows + " адресов. Сохранение в базу..."));
 
-                    // Сохраняем в Room в фоновом потоке
+                    // Сохраняем в Room в фоновом потоке внутри одной транзакции
                     executor.execute(() -> {
-                        db.googleAddressDao().deleteAll();
                         List<GoogleAddressEntity> entities = new ArrayList<>(temp.size());
                         for (String row : temp) {
                             GoogleAddress ga = new GoogleAddress(row);
-                            entities.add(new GoogleAddressEntity(row, ga.getStreetHouse(),
-                                    ga.getStreetHouseKey(), ga.getApartment()));
+                            String house = ga.getStreetHouse();
+                            if (house.isEmpty()) continue;
+                            String key = ga.getStreetHouseKey();
+                            if (key.isEmpty()) continue;
+                            entities.add(new GoogleAddressEntity(row, house, key, ga.getApartment()));
                         }
-                        db.googleAddressDao().insertAll(entities);
+
+                        db.runInTransaction(() -> {
+                            db.googleAddressDao().deleteAll();
+                            db.googleAddressDao().insertAll(entities);
+                        });
                         
                         cachedGroupedAddresses = groupAddressesFromEntities(entities);
                         runOnUiThread(() -> {
@@ -206,7 +241,24 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
             reader.beginArray();
             while (reader.hasNext()) {
                 JsonToken inner = reader.peek();
-                if (inner == JsonToken.BEGIN_OBJECT) {
+                if (inner == JsonToken.BEGIN_ARRAY) {
+                    reader.beginArray();
+                    StringBuilder sb = new StringBuilder();
+                    while (reader.hasNext()) {
+                        JsonToken t = reader.peek();
+                        if (t == JsonToken.STRING || t == JsonToken.NUMBER) {
+                            String s = reader.nextString();
+                            if (s != null && !s.trim().isEmpty()) {
+                                if (sb.length() > 0) sb.append(", ");
+                                sb.append(s.trim().replace('\u00A0', ' '));
+                            }
+                        } else {
+                            reader.skipValue();
+                        }
+                    }
+                    reader.endArray();
+                    if (sb.length() > 0) addParsedRow(list, sb.toString());
+                } else if (inner == JsonToken.BEGIN_OBJECT) {
                     StringBuilder sb = new StringBuilder();
                     reader.beginObject();
                     while (reader.hasNext()) {
@@ -215,15 +267,9 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     }
                     reader.endObject();
                     if (sb.length() > 0) addParsedRow(list, sb.toString());
-                } else if (inner == JsonToken.BEGIN_ARRAY) {
-                    StringBuilder sb = new StringBuilder();
-                    reader.beginArray();
-                    while (reader.hasNext()) appendValue(reader, sb);
-                    reader.endArray();
-                    if (sb.length() > 0) addParsedRow(list, sb.toString());
                 } else if (inner == JsonToken.STRING || inner == JsonToken.NUMBER) {
                     String val = reader.nextString();
-                    if (val != null && !val.isEmpty()) addParsedRow(list, val);
+                    if (val != null && !val.trim().isEmpty()) addParsedRow(list, val.trim());
                 } else {
                     reader.skipValue();
                 }
@@ -243,12 +289,13 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     }
 
     private void addParsedRow(List<String> list, String row) {
-        if (!GoogleAddress.isValidAddressRow(row)) {
-            return;
-        }
-        list.add(row);
+        if (row == null) return;
+        String trimmed = row.trim();
+        if (trimmed.length() < 3) return;
+
+        list.add(trimmed);
         int count = parsedAddressCount.incrementAndGet();
-        if (count % 2000 == 0) {
+        if (count % 5000 == 0) {
             mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
         }
     }
