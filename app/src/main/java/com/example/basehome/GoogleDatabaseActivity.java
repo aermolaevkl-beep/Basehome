@@ -1,5 +1,6 @@
 package com.example.basehome;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -46,7 +47,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private TextView tvLoadingMessage;
     private GoogleAddressAdapter adapter;
     
-    private static List<String> cachedRows = null;
+    private static volatile List<GoogleAddress> cachedGroupedAddresses = null;
     
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -80,7 +81,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         ImageButton btnUpdate = findViewById(R.id.btnUpdateDatabase);
 
         rvResults.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new GoogleAddressAdapter(new ArrayList<>());
+        adapter = new GoogleAddressAdapter(new ArrayList<>(), true, this::showAddressVisits);
         rvResults.setAdapter(adapter);
 
         btnBack.setOnClickListener(v -> finish());
@@ -93,12 +94,13 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                 .show();
         });
 
-        if (cachedRows != null && !cachedRows.isEmpty()) {
+        if (cachedGroupedAddresses != null) {
             llLoadingContainer.setVisibility(View.GONE);
             etSearch.setEnabled(true);
         } else {
             loadFromLocalDb();
         }
+        etSearch.post(() -> performSimpleSearch(etSearch.getText().toString()));
 
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -117,15 +119,16 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
 
         executor.execute(() -> {
             List<String> localData = db.googleAddressDao().getAllAddresses();
-            runOnUiThread(() -> {
-                if (localData != null && !localData.isEmpty()) {
-                    cachedRows = localData;
+            if (localData != null && !localData.isEmpty()) {
+                cachedGroupedAddresses = groupAddresses(localData);
+                runOnUiThread(() -> {
                     llLoadingContainer.setVisibility(View.GONE);
                     etSearch.setEnabled(true);
-                } else {
-                    loadDataFromNetwork();
-                }
-            });
+                    performSimpleSearch(etSearch.getText().toString());
+                });
+            } else {
+                runOnUiThread(this::loadDataFromNetwork);
+            }
         });
     }
 
@@ -179,10 +182,11 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                         }
                         db.googleAddressDao().insertAll(entities);
                         
-                        cachedRows = temp;
+                        cachedGroupedAddresses = groupAddresses(temp);
                         runOnUiThread(() -> {
                             llLoadingContainer.setVisibility(View.GONE);
                             etSearch.setEnabled(true);
+                            performSimpleSearch(etSearch.getText().toString());
                             Toast.makeText(GoogleDatabaseActivity.this, "База обновлена и сохранена!", Toast.LENGTH_SHORT).show();
                         });
                     });
@@ -237,6 +241,9 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     }
 
     private void addParsedRow(List<String> list, String row) throws IOException {
+        if (!GoogleAddress.isValidAddressRow(row)) {
+            return;
+        }
         list.add(row);
         int count = parsedAddressCount.incrementAndGet();
         if (count % 1000 == 0) {
@@ -269,56 +276,87 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         }
     }
 
+    private void showAddressVisits(GoogleAddress address) {
+        Intent intent = new Intent(this, GoogleAddressDetailActivity.class);
+        intent.putExtra(GoogleAddressDetailActivity.EXTRA_ADDRESS, address.getStreetHouse());
+        intent.putStringArrayListExtra(GoogleAddressDetailActivity.EXTRA_VISITS, address.getVisits());
+        startActivity(intent);
+    }
+
+    private List<GoogleAddress> groupAddresses(List<String> rows) {
+        java.util.LinkedHashMap<String, GoogleAddress> grouped = new java.util.LinkedHashMap<>();
+        for (String row : rows) {
+            if (Thread.currentThread().isInterrupted()) return new ArrayList<>();
+            if (!GoogleAddress.isValidAddressRow(row)) continue;
+
+            GoogleAddress visit = new GoogleAddress(row);
+            String addressKey = visit.getStreetHouseKey();
+            if (addressKey.isEmpty()) continue;
+
+            GoogleAddress address = grouped.get(addressKey);
+            if (address == null) {
+                address = new GoogleAddress(visit.getStreetHouse(), new ArrayList<>());
+                grouped.put(addressKey, address);
+            }
+            address.getVisits().add(row);
+        }
+        return new ArrayList<>(grouped.values());
+    }
+
     private void performSimpleSearch(String query) {
         if (searchTask != null) searchTask.cancel(true);
-        if (cachedRows == null) return;
+        List<GoogleAddress> source = cachedGroupedAddresses;
+        if (source == null) return;
 
-        final String input = query.trim().toLowerCase(Locale.getDefault());
-        
+        final String input = query.trim().toLowerCase(Locale.ROOT);
         searchTask = executor.submit(() -> {
             List<GoogleAddress> result = new ArrayList<>();
             if (!input.isEmpty()) {
                 String[] words = input.split("\\s+");
-                for (String row : cachedRows) {
-                    if (Thread.interrupted()) return;
-                    
-                    int limit = Math.min(row.length(), 70);
-                    String searchArea = row.substring(0, limit).toLowerCase(Locale.getDefault());
-                    
+                for (GoogleAddress address : source) {
+                    if (Thread.currentThread().isInterrupted()) return;
+                    String searchArea = address.getStreetHouse().toLowerCase(Locale.ROOT);
                     boolean match = true;
-                    for (int i = 0; i < words.length; i++) {
-                        String word = words[i];
+                    for (String word : words) {
                         if (word.isEmpty()) continue;
-                        
-                        int pos = searchArea.indexOf(word);
-
-                        if (i == 0 && (pos == -1 || pos > 35)) {
+                        if (word.matches("\\d+")) {
+                            if (!containsWholeHouseNumber(searchArea, word) && !containsVisitNumber(address.getVisits(), word)) {
+                                match = false;
+                                break;
+                            }
+                        } else if (!searchArea.contains(word) && !containsVisitWord(address.getVisits(), word)) {
                             match = false;
                             break;
                         }
-
-                        if (word.matches("\\d+")) {
-                            boolean foundValid = false;
-                            while (pos != -1) {
-                                if (isValidHouseNumber(searchArea, word, pos)) {
-                                    foundValid = true;
-                                    break;
-                                }
-                                pos = searchArea.indexOf(word, pos + 1);
-                            }
-                            if (!foundValid) { match = false; break; }
-                        } else {
-                            if (pos == -1) { match = false; break; }
-                        }
                     }
-                    if (match) {
-                        result.add(new GoogleAddress(row));
-                        if (result.size() >= 500) break;
-                    }
+                    if (match) result.add(address);
                 }
             }
             mainHandler.post(() -> adapter.updateList(result));
         });
+    }
+
+    private boolean containsVisitNumber(List<String> visits, String number) {
+        for (String v : visits) {
+            if (containsWholeHouseNumber(v.toLowerCase(Locale.ROOT), number)) return true;
+        }
+        return false;
+    }
+
+    private boolean containsVisitWord(List<String> visits, String word) {
+        for (String v : visits) {
+            if (v.toLowerCase(Locale.ROOT).contains(word)) return true;
+        }
+        return false;
+    }
+
+    private boolean containsWholeHouseNumber(String text, String word) {
+        int pos = text.indexOf(word);
+        while (pos >= 0) {
+            if (isValidHouseNumber(text, word, pos)) return true;
+            pos = text.indexOf(word, pos + 1);
+        }
+        return false;
     }
 
     private boolean isValidHouseNumber(String text, String word, int pos) {

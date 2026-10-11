@@ -18,9 +18,22 @@ public class GoogleAddressAdapter extends RecyclerView.Adapter<GoogleAddressAdap
 
     private final List<GoogleAddress> addresses = new ArrayList<>();
     private final Pattern datePattern = Pattern.compile("\\b(\\d{2}\\.\\d{2}\\.\\d{4})\\b");
+    private final boolean groupedAddresses;
+    private final OnAddressClickListener clickListener;
+
+    public interface OnAddressClickListener {
+        void onAddressClick(GoogleAddress address);
+    }
 
     public GoogleAddressAdapter(List<GoogleAddress> addresses) {
+        this(addresses, false, null);
+    }
+
+    public GoogleAddressAdapter(List<GoogleAddress> addresses, boolean groupedAddresses,
+                                OnAddressClickListener clickListener) {
         this.addresses.addAll(addresses);
+        this.groupedAddresses = groupedAddresses;
+        this.clickListener = clickListener;
     }
 
     public void updateList(List<GoogleAddress> newList) {
@@ -41,6 +54,19 @@ public class GoogleAddressAdapter extends RecyclerView.Adapter<GoogleAddressAdap
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         GoogleAddress item = addresses.get(position);
         String fullText = item.getStreet();
+        if (groupedAddresses) {
+            holder.tvStreetHouse.setText(item.getStreetHouse());
+            holder.tvNameTech.setVisibility(View.GONE);
+            holder.tvDate.setVisibility(View.GONE);
+            holder.tvOtherInfo.setVisibility(View.VISIBLE);
+            holder.tvOtherInfo.setText("Квартир: " + item.getApartmentCount()
+                    + "  •  Выездов: " + item.getVisits().size());
+            holder.itemView.setOnClickListener(v -> {
+                if (clickListener != null) clickListener.onAddressClick(item);
+            });
+            return;
+        }
+        holder.itemView.setOnClickListener(null);
 
         // 1. Извлекаем дату
         Matcher matcher = datePattern.matcher(fullText);
@@ -52,6 +78,7 @@ public class GoogleAddressAdapter extends RecyclerView.Adapter<GoogleAddressAdap
         }
         holder.tvDate.setText(date);
         holder.tvDate.setVisibility(date.isEmpty() ? View.GONE : View.VISIBLE);
+        holder.tvStreetHouse.setText(item.getStreetHouse());
 
         // 2. Разделяем на части по запятой и ДЕДУПЛИЦИРУЕМ
         String[] rawParts = textWithoutDate.split(",");
@@ -68,10 +95,10 @@ public class GoogleAddressAdapter extends RecyclerView.Adapter<GoogleAddressAdap
         // 3. Распределяем по полям
         // Заголовок (Адрес)
         if (!cleanParts.isEmpty()) {
-            holder.tvStreetHouse.setText(cleanParts.get(0));
+            holder.tvStreetHouse.setText(item.getStreetHouse());
             cleanParts.remove(0);
         } else {
-            holder.tvStreetHouse.setText("");
+            holder.tvStreetHouse.setText(item.getStreetHouse());
         }
 
         // Вторая строка (ФИО/Техник)

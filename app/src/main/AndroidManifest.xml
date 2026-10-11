@@ -45,6 +45,9 @@
             android:exported="false" />
 
         <activity
+            android:name=".GoogleAddressDetailActivity"
+            android:exported="false" />
+        <activity
             android:name=".GoogleDatabaseActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout" />
