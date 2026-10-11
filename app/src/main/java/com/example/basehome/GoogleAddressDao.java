@@ -8,6 +8,9 @@ import java.util.List;
 
 @Dao
 public interface GoogleAddressDao {
+    @Query("SELECT * FROM google_addresses")
+    List<GoogleAddressEntity> getAllEntities();
+
     @Query("SELECT fullText FROM google_addresses")
     List<String> getAllAddresses();
 

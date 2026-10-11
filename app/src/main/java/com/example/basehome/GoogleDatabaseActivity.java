@@ -118,9 +118,9 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         etSearch.setEnabled(false);
 
         executor.execute(() -> {
-            List<String> localData = db.googleAddressDao().getAllAddresses();
-            if (localData != null && !localData.isEmpty()) {
-                cachedGroupedAddresses = groupAddresses(localData);
+            List<GoogleAddressEntity> entities = db.googleAddressDao().getAllEntities();
+            if (entities != null && !entities.isEmpty()) {
+                cachedGroupedAddresses = groupAddressesFromEntities(entities);
                 runOnUiThread(() -> {
                     llLoadingContainer.setVisibility(View.GONE);
                     etSearch.setEnabled(true);
@@ -176,13 +176,15 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
                     // Сохраняем в Room в фоновом потоке
                     executor.execute(() -> {
                         db.googleAddressDao().deleteAll();
-                        List<GoogleAddressEntity> entities = new ArrayList<>();
+                        List<GoogleAddressEntity> entities = new ArrayList<>(temp.size());
                         for (String row : temp) {
-                            entities.add(new GoogleAddressEntity(row));
+                            GoogleAddress ga = new GoogleAddress(row);
+                            entities.add(new GoogleAddressEntity(row, ga.getStreetHouse(),
+                                    ga.getStreetHouseKey(), ga.getApartment()));
                         }
                         db.googleAddressDao().insertAll(entities);
                         
-                        cachedGroupedAddresses = groupAddresses(temp);
+                        cachedGroupedAddresses = groupAddressesFromEntities(entities);
                         runOnUiThread(() -> {
                             llLoadingContainer.setVisibility(View.GONE);
                             etSearch.setEnabled(true);
@@ -240,21 +242,14 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         }
     }
 
-    private void addParsedRow(List<String> list, String row) throws IOException {
+    private void addParsedRow(List<String> list, String row) {
         if (!GoogleAddress.isValidAddressRow(row)) {
             return;
         }
         list.add(row);
         int count = parsedAddressCount.incrementAndGet();
-        if (count % 1000 == 0) {
+        if (count % 2000 == 0) {
             mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
-            try {
-                // Даём UI время отрисовать промежуточный счётчик до продолжения быстрого разбора.
-                Thread.sleep(25);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Загрузка прервана", e);
-            }
         }
     }
 
@@ -283,22 +278,20 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private List<GoogleAddress> groupAddresses(List<String> rows) {
+    private List<GoogleAddress> groupAddressesFromEntities(List<GoogleAddressEntity> entities) {
         java.util.LinkedHashMap<String, GoogleAddress> grouped = new java.util.LinkedHashMap<>();
-        for (String row : rows) {
+        for (GoogleAddressEntity entity : entities) {
             if (Thread.currentThread().isInterrupted()) return new ArrayList<>();
-            if (!GoogleAddress.isValidAddressRow(row)) continue;
-
-            GoogleAddress visit = new GoogleAddress(row);
-            String addressKey = visit.getStreetHouseKey();
+            String addressKey = entity.getStreetHouseKey();
             if (addressKey.isEmpty()) continue;
 
             GoogleAddress address = grouped.get(addressKey);
             if (address == null) {
-                address = new GoogleAddress(visit.getStreetHouse(), new ArrayList<>());
+                address = new GoogleAddress(entity.getFullText(), entity.getStreetHouse(),
+                        entity.getStreetHouseKey(), entity.getApartment(), new ArrayList<>());
                 grouped.put(addressKey, address);
             }
-            address.getVisits().add(row);
+            address.getVisits().add(entity.getFullText());
         }
         return new ArrayList<>(grouped.values());
     }

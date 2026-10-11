@@ -7,6 +7,10 @@ public class GoogleAddress {
     @SerializedName("street")
     private String street;
 
+    private transient String cachedStreetHouse;
+    private transient String cachedStreetHouseKey;
+    private transient String cachedApartment;
+
     public GoogleAddress() {}
 
     private java.util.ArrayList<String> visits;
@@ -17,6 +21,14 @@ public class GoogleAddress {
 
     public GoogleAddress(String street, java.util.ArrayList<String> visits) {
         this.street = street;
+        this.visits = visits;
+    }
+
+    public GoogleAddress(String street, String streetHouse, String streetHouseKey, String apartment, java.util.ArrayList<String> visits) {
+        this.street = street;
+        this.cachedStreetHouse = streetHouse;
+        this.cachedStreetHouseKey = streetHouseKey;
+        this.cachedApartment = apartment;
         this.visits = visits;
     }
 
@@ -34,8 +46,13 @@ public class GoogleAddress {
 
     /** Returns the leading street + house portion, excluding an apartment number. */
     public String getStreetHouse() {
+        if (cachedStreetHouse != null) return cachedStreetHouse;
+
         String normalized = getStreet().replace('\u00A0', ' ').trim();
-        if (normalized.isEmpty()) return "";
+        if (normalized.isEmpty()) {
+            cachedStreetHouse = "";
+            return "";
+        }
 
         // 1. Поиск явных ключевых слов квартиры (кв, квартира, кв-ра, apt)
         java.util.regex.Matcher kwMatcher = java.util.regex.Pattern.compile(
@@ -44,7 +61,8 @@ public class GoogleAddress {
         if (kwMatcher.find()) {
             String candidate = kwMatcher.group(1);
             if (candidate != null && !candidate.trim().isEmpty()) {
-                return cleanAddressString(candidate);
+                cachedStreetHouse = cleanAddressString(candidate);
+                return cachedStreetHouse;
             }
         }
 
@@ -55,7 +73,8 @@ public class GoogleAddress {
         if (dashMatcher.find()) {
             String candidate = dashMatcher.group(1);
             if (candidate != null && !candidate.trim().isEmpty()) {
-                return cleanAddressString(candidate);
+                cachedStreetHouse = cleanAddressString(candidate);
+                return cachedStreetHouse;
             }
         }
 
@@ -73,7 +92,8 @@ public class GoogleAddress {
 
         String result = address.length() == 0 ? parts[0].trim() : address.toString();
         result = result.replaceAll("(?i)\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*#?\\s*[^,;]*", "").trim();
-        return cleanAddressString(result);
+        cachedStreetHouse = cleanAddressString(result);
+        return cachedStreetHouse;
     }
 
     private static String cleanAddressString(String input) {
@@ -83,15 +103,23 @@ public class GoogleAddress {
     }
 
     public String getStreetHouseKey() {
+        if (cachedStreetHouseKey != null) return cachedStreetHouseKey;
+
         String streetHouse = getStreetHouse().toLowerCase(java.util.Locale.ROOT);
         streetHouse = streetHouse.replaceAll("(?i)\\b(?:ул|улица|д|дом|пер|переулок|пр-т|проспект)\\.?\\b", "");
-        return streetHouse.replaceAll("[^\\p{L}\\p{N}]", "");
+        cachedStreetHouseKey = streetHouse.replaceAll("[^\\p{L}\\p{N}]", "");
+        return cachedStreetHouseKey;
     }
 
     /** Returns the apartment number when present in the source row. */
     public String getApartment() {
+        if (cachedApartment != null) return cachedApartment;
+
         String normalized = getStreet().replace('\u00A0', ' ').trim();
-        if (normalized.isEmpty()) return "";
+        if (normalized.isEmpty()) {
+            cachedApartment = "";
+            return "";
+        }
 
         // 1. Поиск явных ключевых слов квартиры (кв, квартира)
         java.util.regex.Matcher kwMatcher = java.util.regex.Pattern.compile(
@@ -99,7 +127,8 @@ public class GoogleAddress {
         ).matcher(normalized);
         if (kwMatcher.find()) {
             String apt = kwMatcher.group(1);
-            return apt != null ? apt.trim() : "";
+            cachedApartment = apt != null ? apt.trim() : "";
+            return cachedApartment;
         }
 
         // 2. Поиск формата дом-квартира ("кулешова 22-14")
@@ -108,9 +137,11 @@ public class GoogleAddress {
         ).matcher(normalized);
         if (dashMatcher.find()) {
             String apt = dashMatcher.group(1);
-            return apt != null ? apt.trim() : "";
+            cachedApartment = apt != null ? apt.trim() : "";
+            return cachedApartment;
         }
 
+        cachedApartment = "";
         return "";
     }
 
