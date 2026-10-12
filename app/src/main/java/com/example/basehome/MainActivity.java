@@ -132,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("city", activeCity);
             startActivity(intent);
         });
+        findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
     }
 
     private void setupCitySelector() {

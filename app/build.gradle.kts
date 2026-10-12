@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.basehome"
         minSdk = 24
         targetSdk = 35
-        versionCode =5
-        versionName = "1.5.2"
+        versionCode =6
+        versionName = "1.5.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

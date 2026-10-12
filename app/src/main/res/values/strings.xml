@@ -4,6 +4,8 @@
     <string name="physical_addresses">Физические адреса</string>
     <string name="business_addresses">Юридические адреса</string>
     <string name="database">База данных</string>
+    <string name="tasks">Задачи</string>
+    <string name="tasks_description">Выезды и назначенные задания</string>
     <string name="connection_checking">Связь...</string>
     <string name="logout">Выйти</string>
     <string name="main_welcome_title">Добро пожаловать</string>

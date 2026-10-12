@@ -45,6 +45,9 @@
             android:exported="false" />
 
         <activity
+            android:name=".TasksActivity"
+            android:exported="false" />
+        <activity
             android:name=".GoogleAddressDetailActivity"
             android:exported="false" />
         <activity

@@ -11,8 +11,10 @@
     <color name="card_bg_physical">#EAF2F8</color>
     <color name="card_bg_business">#F4EEE5</color>
     <color name="card_bg_google">#EEF1F2</color>
+    <color name="card_bg_tasks">#E8F4EC</color>
 
     <color name="text_on_card_physical">#31516D</color>
     <color name="text_on_card_business">#65533E</color>
     <color name="text_on_card_google">#45545B</color>
+    <color name="text_on_card_tasks">#2E5A36</color>
 </resources>
