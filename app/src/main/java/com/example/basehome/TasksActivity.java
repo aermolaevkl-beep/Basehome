@@ -230,6 +230,8 @@ public class TasksActivity extends AppCompatActivity {
     }
 
     private List<TaskDateGroup> groupTasksByDate(List<TaskItem> tasks) {
+        tasks.sort((t1, t2) -> t1.getDateTime().compareTo(t2.getDateTime()));
+
         Map<String, List<TaskItem>> map = new LinkedHashMap<>();
         for (TaskItem task : tasks) {
             String dt = task.getDateTime();
@@ -245,6 +247,7 @@ public class TasksActivity extends AppCompatActivity {
         for (Map.Entry<String, List<TaskItem>> entry : map.entrySet()) {
             groups.add(new TaskDateGroup(entry.getKey(), entry.getValue()));
         }
+        groups.sort((g1, g2) -> g1.getDate().compareTo(g2.getDate()));
         return groups;
     }
 
