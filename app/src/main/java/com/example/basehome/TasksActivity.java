@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -106,7 +107,11 @@ public class TasksActivity extends AppCompatActivity {
     private void fetchTasksFromGoogleSheets() {
         tvLoadingMessage.setText("Загрузка задач...");
 
-        OkHttpClient client = new OkHttpClient.Builder().build();
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .build();
         String url = SCRIPT_URL;
         try {
             url = SCRIPT_URL + "?sheet=" + java.net.URLEncoder.encode("выезда", StandardCharsets.UTF_8.name());
