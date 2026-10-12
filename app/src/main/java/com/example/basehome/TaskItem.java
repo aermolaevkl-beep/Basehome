@@ -1,6 +1,8 @@
 package com.example.basehome;
 
 import android.util.Log;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class TaskItem {
@@ -31,26 +33,66 @@ public class TaskItem {
 
     public static TaskItem fromRowString(String row) {
         if (row == null) return null;
-        String[] parts = row.split(",");
-        if (parts.length >= 9) {
-            return new TaskItem(
-                    parts[0], parts[1], parts[2], parts[3],
-                    parts[4], parts[5], parts[6], parts[7], parts[8]
-            );
-        } else if (parts.length > 0) {
-            return new TaskItem(
-                    parts[0],
-                    parts.length > 1 ? parts[1] : "",
-                    parts.length > 2 ? parts[2] : "",
-                    parts.length > 3 ? parts[3] : "",
-                    parts.length > 4 ? parts[4] : "",
-                    parts.length > 5 ? parts[5] : "",
-                    parts.length > 6 ? parts[6] : "",
-                    parts.length > 7 ? parts[7] : "",
-                    parts.length > 8 ? parts[8] : ""
-            );
+        String[] rawParts = row.split(",");
+        List<String> parts = new ArrayList<>();
+        for (String p : rawParts) {
+            parts.add(p.trim());
         }
-        return null;
+
+        if (parts.size() >= 9) {
+            int accountIdx = -1;
+            int phoneIdx = -1;
+
+            for (int i = 2; i < parts.size(); i++) {
+                String p = parts.get(i);
+                if (accountIdx == -1 && p.matches("\\d{10,14}")) {
+                    accountIdx = i;
+                } else if (phoneIdx == -1 && (p.matches("375\\d{9}") || (p.matches("\\d{9,12}") && i > 3))) {
+                    phoneIdx = i;
+                }
+            }
+
+            if (accountIdx != -1 && phoneIdx != -1 && phoneIdx > accountIdx) {
+                String type = parts.get(0);
+                String dateTime = parts.get(1);
+                
+                // Installer is usually index 2, but if address parts shifted, let's find installer or use index 2
+                String installer = parts.get(2);
+
+                StringBuilder addr = new StringBuilder();
+                for (int i = 3; i < accountIdx; i++) {
+                    if (addr.length() > 0) addr.append(", ");
+                    addr.append(parts.get(i));
+                }
+
+                String account = parts.get(accountIdx);
+
+                StringBuilder clientName = new StringBuilder();
+                for (int i = accountIdx + 1; i < phoneIdx; i++) {
+                    if (clientName.length() > 0) clientName.append(", ");
+                    clientName.append(parts.get(i));
+                }
+
+                String phone = parts.get(phoneIdx);
+                String tariff = phoneIdx + 1 < parts.size() ? parts.get(phoneIdx + 1) : "";
+                String tech = phoneIdx + 2 < parts.size() ? parts.get(phoneIdx + 2) : "";
+
+                return new TaskItem(type, dateTime, installer, addr.toString(), account, clientName.toString(), phone, tariff, tech);
+            }
+        }
+
+        // Fallback
+        return new TaskItem(
+                parts.size() > 0 ? parts.get(0) : "",
+                parts.size() > 1 ? parts.get(1) : "",
+                parts.size() > 2 ? parts.get(2) : "",
+                parts.size() > 3 ? parts.get(3) : "",
+                parts.size() > 4 ? parts.get(4) : "",
+                parts.size() > 5 ? parts.get(5) : "",
+                parts.size() > 6 ? parts.get(6) : "",
+                parts.size() > 7 ? parts.get(7) : "",
+                parts.size() > 8 ? parts.get(8) : ""
+        );
     }
 
     public static boolean matchesUser(String installerName, String userName) {
@@ -63,7 +105,7 @@ public class TaskItem {
         String[] instWords = instClean.split("[\\s_]+");
         String[] userWords = userClean.split("[\\s_@-]+");
 
-        Log.d(TAG, "Matching user - userName: '" + userName + "' (clean: '" + userClean + "') with installerName: '" + installerName + "' (clean: '" + instClean + "')");
+        Log.d(TAG, "Matching user - userName: '" + userName + "' with installerName: '" + installerName + "'");
 
         for (String uw : userWords) {
             if (uw.length() >= 3) {
@@ -72,7 +114,6 @@ public class TaskItem {
                 }
                 for (String iw : instWords) {
                     if (iw.length() >= 3 && (iw.contains(uw) || uw.contains(iw))) {
-                        Log.d(TAG, "Match found! User word '" + uw + "' matches installer word '" + iw + "'");
                         return true;
                     }
                 }
