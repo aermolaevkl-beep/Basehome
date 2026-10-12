@@ -1,7 +1,10 @@
 package com.example.basehome;
 
 import android.util.Log;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -55,8 +58,6 @@ public class TaskItem {
             if (accountIdx != -1 && phoneIdx != -1 && phoneIdx > accountIdx) {
                 String type = parts.get(0);
                 String dateTime = parts.get(1);
-                
-                // Installer is usually index 2, but if address parts shifted, let's find installer or use index 2
                 String installer = parts.get(2);
 
                 StringBuilder addr = new StringBuilder();
@@ -83,7 +84,7 @@ public class TaskItem {
 
         // Fallback
         return new TaskItem(
-                parts.size() > 0 ? parts.get(0) : "",
+                !parts.isEmpty() ? parts.get(0) : "",
                 parts.size() > 1 ? parts.get(1) : "",
                 parts.size() > 2 ? parts.get(2) : "",
                 parts.size() > 3 ? parts.get(3) : "",
@@ -123,7 +124,28 @@ public class TaskItem {
     }
 
     public String getType() { return type; }
-    public String getDateTime() { return dateTime; }
+
+    public String getDateTime() {
+        if (dateTime == null || dateTime.trim().isEmpty()) return "";
+        String trimmed = dateTime.trim();
+        String[] patterns = {"dd.MM.yyyy HH:mm", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm:ss", "yyyy-MM-dd HH:mm:ss"};
+        for (String pattern : patterns) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.getDefault());
+                sdf.setLenient(true);
+                Date date = sdf.parse(trimmed);
+                if (date != null) {
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(date);
+                    cal.add(Calendar.HOUR_OF_DAY, 2);
+                    SimpleDateFormat outSdf = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault());
+                    return outSdf.format(cal.getTime());
+                }
+            } catch (Exception ignored) {}
+        }
+        return trimmed;
+    }
+
     public String getInstallerName() { return installerName; }
     public String getAddress() { return address; }
     public String getAccountNumber() { return accountNumber; }
