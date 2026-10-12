@@ -1,10 +1,11 @@
 package com.example.basehome;
 
 import androidx.room.Entity;
+import androidx.room.Index;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "google_addresses")
+@Entity(tableName = "google_addresses", indices = {@Index(value = {"city", "streetHouseKey"})})
 public class GoogleAddressEntity {
     @PrimaryKey(autoGenerate = true)
     private int id;

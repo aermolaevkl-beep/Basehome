@@ -7,6 +7,7 @@
     <color name="brand_primary">#496783</color>
     <color name="brand_secondary">#31516D</color>
     <color name="brand_accent">#6A7F6A</color>
+    <color name="address_card_stroke">#B9C5CE</color>
 
     <color name="card_bg_physical">#EAF2F8</color>
     <color name="card_bg_business">#F4EEE5</color>
@@ -17,4 +18,13 @@
     <color name="text_on_card_business">#65533E</color>
     <color name="text_on_card_google">#45545B</color>
     <color name="text_on_card_tasks">#2E5A36</color>
+
+    <color name="task_address_found_bg">#E5F2E9</color>
+    <color name="task_address_found_accent">#39734B</color>
+    <color name="task_address_found_text">#263D2D</color>
+    <color name="task_address_missing_bg">#FFF2D9</color>
+    <color name="task_address_missing_accent">#95610D</color>
+    <color name="task_address_missing_text">#4A3A20</color>
+    <color name="task_card_neutral_bg">#F8F6F2</color>
+    <color name="task_card_neutral_stroke">#D8D3CA</color>
 </resources>

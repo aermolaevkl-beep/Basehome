@@ -37,7 +37,7 @@ class CommentAdapter(
         val btnReply: TextView = view.findViewById(R.id.btnReply)
         val btnEdit: ImageButton = view.findViewById(R.id.btnEditComment)
         val btnDelete: ImageButton = view.findViewById(R.id.btnDeleteComment)
-        val rootLayout: LinearLayout = view as LinearLayout
+        val rootLayout: LinearLayout = view.findViewById(R.id.commentContent)
     }
 
     fun setAdmin(admin: Boolean) {

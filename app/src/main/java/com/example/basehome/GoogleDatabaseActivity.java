@@ -6,23 +6,17 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.JsonReader;
-import android.util.JsonToken;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,21 +24,20 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 public class GoogleDatabaseActivity extends AppCompatActivity {
 
     private EditText etSearch;
     private LinearLayout llLoadingContainer;
     private TextView tvLoadingMessage;
+    private TextView tvDatabaseEmptyState;
     private GoogleAddressAdapter adapter;
     
     private static volatile List<GoogleAddress> cachedGroupedAddresses = null;
@@ -52,6 +45,9 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private final AtomicInteger parsedAddressCount = new AtomicInteger();
+    private final AtomicInteger skippedAddressCount = new AtomicInteger();
+    private final AtomicInteger apartmentCount = new AtomicInteger();
+    private final AtomicInteger missingAddressCount = new AtomicInteger();
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -65,8 +61,6 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private Future<?> searchTask;
     private AppDatabase db;
     private String targetCity = "Могилев";
-
-    private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBs8rnv_krynJVIXX3jDWF2RlWm4f0vS852NIGt23gxUMPZB0JACVcDWa4WCNhkjxO/exec";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +76,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         etSearch = findViewById(R.id.etSearchDatabase);
         llLoadingContainer = findViewById(R.id.llLoadingContainer);
         tvLoadingMessage = findViewById(R.id.tvLoadingMessage);
+        tvDatabaseEmptyState = findViewById(R.id.tvDatabaseEmptyState);
         RecyclerView rvResults = findViewById(R.id.rvDatabaseResults);
         ImageButton btnBack = findViewById(R.id.btnBackDatabase);
         ImageButton btnUpdate = findViewById(R.id.btnUpdateDatabase);
@@ -94,7 +89,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
         btnUpdate.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
                 .setTitle("Обновление")
-                .setMessage("Загрузить свежую базу для г. " + targetCity + " из Google Таблиц?")
+                .setMessage("Загрузить свежую базу для г. " + targetCity + " из Firebase?")
                 .setPositiveButton("Да", (d, w) -> loadDataFromNetwork())
                 .setNegativeButton("Отмена", null)
                 .show();
@@ -104,6 +99,8 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
             llLoadingContainer.setVisibility(View.GONE);
             etSearch.setEnabled(true);
         } else {
+            tvDatabaseEmptyState.setText(R.string.database_loading_local);
+            tvDatabaseEmptyState.setVisibility(View.VISIBLE);
             loadFromLocalDb();
         }
         etSearch.post(() -> performSimpleSearch(etSearch.getText().toString()));
@@ -160,172 +157,121 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private void loadDataFromNetwork() {
         llLoadingContainer.setVisibility(View.VISIBLE);
         parsedAddressCount.set(0);
+        skippedAddressCount.set(0);
+        apartmentCount.set(0);
+        missingAddressCount.set(0);
         tvLoadingMessage.setText("Получено адресов: 0");
         mainHandler.removeCallbacks(progressUpdater);
         mainHandler.postDelayed(progressUpdater, 150);
         etSearch.setEnabled(false);
 
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(90, TimeUnit.SECONDS)
-                .readTimeout(90, TimeUnit.SECONDS)
-                .followRedirects(true)
-                .build();
+        DatabaseReference cityReference = FirebaseDatabase.getInstance()
+                .getReference("database")
+                .child(getFirebaseCityKey(targetCity));
 
-        String url = SCRIPT_URL;
-        try {
-            url = SCRIPT_URL + "?city=" + java.net.URLEncoder.encode(targetCity, StandardCharsets.UTF_8.name());
-        } catch (Exception ignored) {}
+        cityReference.get()
+                .addOnSuccessListener(snapshot -> executor.execute(() -> {
+                    long parseStartMs = android.os.SystemClock.elapsedRealtime();
+                    int sourceRowCount = (int) snapshot.getChildrenCount();
+                    List<GoogleAddressEntity> entities = new ArrayList<>(sourceRowCount);
+                    for (DataSnapshot rowSnapshot : snapshot.getChildren()) {
+                        String address = getChildText(rowSnapshot, "address");
+                        if (address.isEmpty()) {
+                            missingAddressCount.incrementAndGet();
+                            continue;
+                        }
 
-        client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                showError("Ошибка сети: " + e.getLocalizedMessage());
-            }
+                        String date = getChildText(rowSnapshot, "date");
+                        String installer = getChildText(rowSnapshot, "installer");
+                        String workType = getChildText(rowSnapshot, "work_type");
+                        String account = getChildText(rowSnapshot, "account");
+                        String apartment = getChildText(rowSnapshot, "apartment");
+                        String addressWithApartment = address;
+                        if (!apartment.isEmpty() && new GoogleAddress(address).getApartment().isEmpty()) {
+                            addressWithApartment = address + ", кв. " + apartment;
+                        }
+                        String fullText = joinNonEmpty(addressWithApartment, date, installer, workType, account);
 
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                if (!response.isSuccessful()) {
-                    showError("Ошибка сервера Google: " + response.code());
-                    return;
-                }
+                        GoogleAddress parsedAddress = new GoogleAddress(addressWithApartment);
+                        String house = parsedAddress.getStreetHouse();
+                        String key = parsedAddress.getStreetHouseKey();
+                        String parsedApartment = parsedAddress.getApartment();
+                        if (house.isEmpty() || key.isEmpty()) {
+                            skippedAddressCount.incrementAndGet();
+                            continue;
+                        }
 
-                try (ResponseBody body = response.body()) {
-                    if (body == null) {
-                        showError("Пустой ответ от сервера Google");
-                        return;
+                        entities.add(new GoogleAddressEntity(targetCity, fullText, house, key,
+                                parsedApartment.isEmpty() ? apartment : parsedApartment));
+                        if (!(parsedApartment.isEmpty() && apartment.isEmpty())) {
+                            apartmentCount.incrementAndGet();
+                        }
+                        int count = parsedAddressCount.incrementAndGet();
+                        if (count % 2000 == 0) {
+                            mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
+                        }
                     }
 
-                    String rawContent = body.string();
-                    String trimmed = rawContent.trim();
-                    if (trimmed.startsWith("<") || trimmed.toLowerCase(Locale.ROOT).contains("<html")) {
-                        showError("Гугл Скрипт вернул HTML-страницу вместо JSON.\nПроверьте права доступа в Google Apps Script: должно стоять 'Кто имеет доступ' -> 'Все пользователи' (Anyone).");
-                        return;
-                    }
-
-                    List<String> temp = new ArrayList<>(65000);
-                    try (JsonReader reader = new JsonReader(new StringReader(trimmed))) {
-                        reader.setLenient(true);
-                        recursiveParse(reader, temp);
-                    }
-
-                    int totalRows = temp.size();
-                    mainHandler.removeCallbacks(progressUpdater);
+                    long parseDurationMs = android.os.SystemClock.elapsedRealtime() - parseStartMs;
                     mainHandler.post(() -> tvLoadingMessage.setText(
-                            "Получено " + totalRows + " адресов. Сохранение в базу..."));
-
-                    executor.execute(() -> {
-                        List<GoogleAddressEntity> entities = new ArrayList<>(temp.size());
-                        for (String row : temp) {
-                            GoogleAddress ga = new GoogleAddress(row);
-                            String house = ga.getStreetHouse();
-                            if (house.isEmpty()) continue;
-                            String key = ga.getStreetHouseKey();
-                            if (key.isEmpty()) continue;
-                            entities.add(new GoogleAddressEntity(targetCity, row, house, key, ga.getApartment()));
-                        }
-
-                        db.runInTransaction(() -> {
-                            db.googleAddressDao().deleteForCity(targetCity);
-                            db.googleAddressDao().insertAll(entities);
-                        });
-                        
-                        cachedGroupedAddresses = groupAddressesFromEntities(entities);
-                        runOnUiThread(() -> {
-                            llLoadingContainer.setVisibility(View.GONE);
-                            etSearch.setEnabled(true);
-                            performSimpleSearch(etSearch.getText().toString());
-                            Toast.makeText(GoogleDatabaseActivity.this, "База для г. " + targetCity + " обновлена!", Toast.LENGTH_SHORT).show();
-                        });
+                            "Загружено " + entities.size() + " адресов. Сохранение в базу..."));
+                    long saveStartMs = android.os.SystemClock.elapsedRealtime();
+                    db.runInTransaction(() -> {
+                        db.googleAddressDao().deleteForCity(targetCity);
+                        db.googleAddressDao().insertAll(entities);
                     });
-
-                } catch (Exception e) {
-                    showError("Ошибка данных: " + e.getMessage());
-                }
-            }
-        });
+                    long saveDurationMs = android.os.SystemClock.elapsedRealtime() - saveStartMs;
+                    int savedCount = db.googleAddressDao().getCountForCity(targetCity);
+                    TasksActivity.clearAddressMemoryCache();
+                    cachedGroupedAddresses = groupAddressesFromEntities(entities);
+                    final int finalSkippedCount = skippedAddressCount.get();
+                    final int finalMissingAddressCount = missingAddressCount.get();
+                    final int finalApartmentCount = apartmentCount.get();
+                    final long finalParseDurationMs = parseDurationMs;
+                    final long finalSaveDurationMs = saveDurationMs;
+                    runOnUiThread(() -> {
+                        mainHandler.removeCallbacks(progressUpdater);
+                        llLoadingContainer.setVisibility(View.GONE);
+                        etSearch.setEnabled(true);
+                        performSimpleSearch(etSearch.getText().toString());
+                        new AlertDialog.Builder(GoogleDatabaseActivity.this)
+                                .setTitle("Отчёт обновления базы")
+                                .setMessage("Город: " + targetCity
+                                        + "\nСтрок в Firebase: " + sourceRowCount
+                                        + "\nАдресов сохранено: " + savedCount
+                                        + "\nИз них с квартирой: " + finalApartmentCount
+                                        + "\nПропущено — не удалось разобрать адрес: " + finalSkippedCount
+                                        + "\nПропущено — пустое поле address: " + finalMissingAddressCount
+                                        + "\nРазбор: " + finalParseDurationMs + " мс"
+                                        + "\nСохранение: " + finalSaveDurationMs + " мс")
+                                .setPositiveButton("ОК", null)
+                                .show();
+                    });
+                }))
+                .addOnFailureListener(error -> showError("Не удалось загрузить базу Firebase: "
+                        + error.getLocalizedMessage()))
+                .addOnCanceledListener(() -> showError("Загрузка базы Firebase отменена"));
     }
 
-    private void recursiveParse(JsonReader reader, List<String> list) throws IOException {
-        JsonToken token = reader.peek();
-        if (token == JsonToken.BEGIN_ARRAY) {
-            reader.beginArray();
-            while (reader.hasNext()) {
-                JsonToken inner = reader.peek();
-                if (inner == JsonToken.BEGIN_ARRAY) {
-                    reader.beginArray();
-                    StringBuilder sb = new StringBuilder();
-                    while (reader.hasNext()) {
-                        JsonToken t = reader.peek();
-                        if (t == JsonToken.STRING || t == JsonToken.NUMBER) {
-                            String s = reader.nextString();
-                            if (s != null && !s.trim().isEmpty()) {
-                                if (sb.length() > 0) sb.append(", ");
-                                sb.append(s.trim().replace('\u00A0', ' '));
-                            }
-                        } else {
-                            reader.skipValue();
-                        }
-                    }
-                    reader.endArray();
-                    if (sb.length() > 0) addParsedRow(list, sb.toString());
-                } else if (inner == JsonToken.BEGIN_OBJECT) {
-                    StringBuilder sb = new StringBuilder();
-                    reader.beginObject();
-                    while (reader.hasNext()) {
-                        reader.nextName();
-                        appendValue(reader, sb);
-                    }
-                    reader.endObject();
-                    if (sb.length() > 0) addParsedRow(list, sb.toString());
-                } else if (inner == JsonToken.STRING || inner == JsonToken.NUMBER) {
-                    String val = reader.nextString();
-                    if (val != null && !val.trim().isEmpty()) addParsedRow(list, val.trim());
-                } else {
-                    reader.skipValue();
-                }
-            }
-            reader.endArray();
-        } else if (token == JsonToken.BEGIN_OBJECT) {
-            reader.beginObject();
-            while (reader.hasNext()) {
-                reader.nextName();
-                recursiveParse(reader, list);
-                if (!list.isEmpty()) break;
-            }
-            reader.endObject();
-        } else {
-            reader.skipValue();
-        }
+    private String getFirebaseCityKey(String city) {
+        String normalized = city == null ? "" : city.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("могилев") || normalized.equals("могилёв")) return "mogilev";
+        return normalized.replace('ё', 'е').replaceAll("[^\\p{L}\\p{N}]+", "_");
     }
 
-    private void addParsedRow(List<String> list, String row) {
-        if (row == null) return;
-        String trimmed = row.trim();
-        if (trimmed.length() < 3) return;
-
-        list.add(trimmed);
-        int count = parsedAddressCount.incrementAndGet();
-        if (count % 2000 == 0) {
-            mainHandler.post(() -> tvLoadingMessage.setText("Получено адресов: " + count));
-        }
+    private String getChildText(DataSnapshot snapshot, String childName) {
+        Object value = snapshot.child(childName).getValue();
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
-    private void appendValue(JsonReader reader, StringBuilder sb) throws IOException {
-        JsonToken token = reader.peek();
-        String val = null;
-        if (token == JsonToken.STRING || token == JsonToken.NUMBER) {
-            val = reader.nextString();
-        } else if (token == JsonToken.BOOLEAN) {
-            val = String.valueOf(reader.nextBoolean());
-        } else if (token == JsonToken.NULL) {
-            reader.nextNull();
-        } else {
-            reader.skipValue();
+    private String joinNonEmpty(String... values) {
+        StringBuilder result = new StringBuilder();
+        for (String value : values) {
+            if (value == null || value.trim().isEmpty()) continue;
+            if (result.length() > 0) result.append(", ");
+            result.append(value.trim().replace('\u00A0', ' '));
         }
-        if (sb != null && val != null && !val.trim().isEmpty()) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(val.trim().replace('\u00A0', ' '));
-        }
+        return result.toString();
     }
 
     private void showAddressVisits(GoogleAddress address) {
@@ -356,52 +302,75 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private void performSimpleSearch(String query) {
         if (searchTask != null) searchTask.cancel(true);
         List<GoogleAddress> source = cachedGroupedAddresses;
-        if (source == null) return;
+        if (source == null) {
+            adapter.updateList(new ArrayList<>());
+            tvDatabaseEmptyState.setText(R.string.database_loading_local);
+            tvDatabaseEmptyState.setVisibility(View.VISIBLE);
+            return;
+        }
 
         final String input = query.trim().toLowerCase(Locale.ROOT);
+        if (source.isEmpty()) {
+            adapter.updateList(new ArrayList<>());
+            tvDatabaseEmptyState.setText(R.string.database_empty);
+            tvDatabaseEmptyState.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (input.isEmpty()) {
+            adapter.updateList(new ArrayList<>());
+            tvDatabaseEmptyState.setText(R.string.database_search_prompt);
+            tvDatabaseEmptyState.setVisibility(View.VISIBLE);
+            return;
+        }
+        tvDatabaseEmptyState.setVisibility(View.GONE);
         searchTask = executor.submit(() -> {
             List<GoogleAddress> result = new ArrayList<>();
-            if (!input.isEmpty()) {
-                String[] words = input.split("\\s+");
-                for (GoogleAddress address : source) {
-                    if (Thread.currentThread().isInterrupted()) return;
-                    String searchArea = address.getStreetHouse().toLowerCase(Locale.ROOT);
-                    boolean match = true;
-                    
-                    for (String word : words) {
-                        if (word.isEmpty()) continue;
-                        
-                        if (word.contains("-")) {
-                            String[] parts = word.split("-");
-                            for (String p : parts) {
-                                if (p.matches("\\d+")) {
-                                    if (!containsWholeHouseNumber(searchArea, p) && !containsVisitNumber(address.getVisits(), p)) {
-                                        match = false;
-                                        break;
-                                    }
-                                } else if (!searchArea.contains(p)) {
+            String[] words = input.split("\\s+");
+            for (GoogleAddress address : source) {
+                if (Thread.currentThread().isInterrupted()) return;
+                String searchArea = address.getStreetHouse().toLowerCase(Locale.ROOT);
+                boolean match = true;
+
+                for (String word : words) {
+                    if (word.isEmpty()) continue;
+
+                    if (word.contains("-")) {
+                        String[] parts = word.split("-");
+                        for (String part : parts) {
+                            if (part.matches("\\d+")) {
+                                if (!containsWholeHouseNumber(searchArea, part)
+                                        && !containsVisitNumber(address.getVisits(), part)) {
                                     match = false;
                                     break;
                                 }
-                            }
-                        } else if (word.matches("\\d+")) {
-                            if (!containsWholeHouseNumber(searchArea, word)) {
-                                match = false;
-                                break;
-                            }
-                        } else {
-                            if (!searchArea.contains(word)) {
+                            } else if (!searchArea.contains(part)) {
                                 match = false;
                                 break;
                             }
                         }
+                    } else if (word.matches("\\d+")) {
+                        if (!containsWholeHouseNumber(searchArea, word)) {
+                            match = false;
+                            break;
+                        }
+                    } else if (!searchArea.contains(word)) {
+                        match = false;
+                        break;
                     }
-                    if (match) result.add(address);
                 }
-                
-                result.sort((a1, a2) -> compareHouses(a1.getStreetHouse(), a2.getStreetHouse()));
+                if (match) result.add(address);
             }
-            mainHandler.post(() -> adapter.updateList(result));
+
+            result.sort((a1, a2) -> compareHouses(a1.getStreetHouse(), a2.getStreetHouse()));
+            mainHandler.post(() -> {
+                adapter.updateList(result);
+                if (!result.isEmpty()) {
+                    tvDatabaseEmptyState.setVisibility(View.GONE);
+                } else {
+                    tvDatabaseEmptyState.setText(R.string.database_no_results);
+                    tvDatabaseEmptyState.setVisibility(View.VISIBLE);
+                }
+            });
         });
     }
 
@@ -447,9 +416,14 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private boolean isValidHouseNumber(String text, String word, int pos) {
         int end = pos + word.length();
         if (pos > 0 && text.charAt(pos - 1) == '.') return false;
-        if (end < text.length() && text.charAt(end) == '.') return false;
         if (pos > 0 && Character.isDigit(text.charAt(pos - 1))) return false;
-        if (end < text.length() && Character.isDigit(text.charAt(end))) return false;
+        if (end < text.length()) {
+            char next = text.charAt(end);
+            // A matching base house number also includes numbered buildings like 68.1/68.2.
+            if (Character.isDigit(next)) return false;
+            if (next == '.' && end + 1 < text.length()
+                    && Character.isDigit(text.charAt(end + 1))) return true;
+        }
         return true;
     }
 

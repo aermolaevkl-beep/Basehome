@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -89,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
         updateManager = new UpdateManager(this);
         setupRemoteConfig();
         checkUpdate();
+        syncInstalledAppVersion();
         updateUI();
         
         setupPresenceAndConnection(); 
@@ -234,6 +236,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
+    }
+
+    private void syncInstalledAppVersion() {
+        if (currentUser == null) return;
+
+        String installedVersion = BuildConfig.VERSION_NAME;
+        FirebaseDatabase.getInstance().getReference("users")
+                .child(currentUser.getUid())
+                .child("appVersion")
+                .setValue(installedVersion)
+                .addOnFailureListener(error ->
+                        Log.w("MainActivity", "Не удалось сохранить версию приложения пользователя", error));
     }
 
     private void setupPresenceAndConnection() {

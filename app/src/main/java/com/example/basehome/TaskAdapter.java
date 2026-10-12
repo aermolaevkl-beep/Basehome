@@ -3,6 +3,7 @@ package com.example.basehome;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.net.Uri;
 import android.view.LayoutInflater;
@@ -25,6 +26,33 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
     private final List<TaskItem> tasks = new ArrayList<>();
     private Map<String, ArrayList<String>> addressHistoryMap = new HashMap<>();
+    private Map<String, PhysicalAddressContext> physicalAddressContextMap = new HashMap<>();
+    private final OnCreateAddressListener onCreateAddress;
+
+    public interface OnCreateAddressListener {
+        void onCreateAddress(String streetHouse);
+    }
+
+    public static class PhysicalAddressContext {
+        public final String addressId;
+        public final String addressLabel;
+        public final String details;
+
+        public PhysicalAddressContext(String addressId, String addressLabel, String details) {
+            this.addressId = addressId;
+            this.addressLabel = addressLabel;
+            this.details = details;
+        }
+    }
+
+    public TaskAdapter(OnCreateAddressListener onCreateAddress) {
+        this.onCreateAddress = onCreateAddress;
+    }
+
+    public void setPhysicalAddressContextMap(Map<String, PhysicalAddressContext> map) {
+        physicalAddressContextMap = map != null ? map : new HashMap<>();
+        notifyDataSetChanged();
+    }
 
     public void updateTasks(List<TaskItem> newTasks) {
         tasks.clear();
@@ -55,6 +83,56 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         holder.tvDateTime.setText(item.getDateTime());
         holder.tvAddress.setText(item.getAddress());
         holder.tvClientName.setText(item.getClientName());
+
+        String physicalAddressKey = GoogleAddress.parseHouseKey(item.getAddress());
+        PhysicalAddressContext physicalContext = physicalAddressContextMap.get(physicalAddressKey);
+        holder.cardPhysicalAddress.setVisibility(View.VISIBLE);
+        if (physicalContext == null) {
+            int accent = androidx.core.content.ContextCompat.getColor(context, R.color.task_address_missing_accent);
+            holder.cardPhysicalAddress.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.task_card_neutral_bg));
+            holder.cardPhysicalAddress.setStrokeColor(androidx.core.content.ContextCompat.getColor(context, R.color.task_card_neutral_stroke));
+            holder.cardPhysicalAddress.setStrokeWidth(1);
+            holder.ivPhysicalAddressStatus.setImageResource(android.R.drawable.ic_input_add);
+            holder.ivPhysicalAddressStatus.setImageTintList(ColorStateList.valueOf(accent));
+            holder.tvPhysicalAddressStatus.setVisibility(View.GONE);
+            holder.tvPhysicalAddressTitle.setText(R.string.task_physical_address_missing_compact);
+            holder.tvPhysicalAddressTitle.setTextColor(accent);
+            holder.tvPhysicalAddressDetails.setVisibility(View.GONE);
+            GoogleAddress parsedAddress = new GoogleAddress(item.getAddress());
+            String streetHouse = parsedAddress.getStreetHouse();
+            holder.cardPhysicalAddress.setOnClickListener(v -> {
+                if (onCreateAddress != null && !streetHouse.trim().isEmpty()) {
+                    onCreateAddress.onCreateAddress(streetHouse);
+                } else {
+                    Toast.makeText(context, R.string.task_physical_address_parse_error, Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            int background = androidx.core.content.ContextCompat.getColor(context, R.color.task_address_found_bg);
+            int accent = androidx.core.content.ContextCompat.getColor(context, R.color.task_address_found_accent);
+            int text = androidx.core.content.ContextCompat.getColor(context, R.color.task_address_found_text);
+            holder.cardPhysicalAddress.setCardBackgroundColor(background);
+            holder.cardPhysicalAddress.setStrokeColor(accent);
+            holder.cardPhysicalAddress.setStrokeWidth(2);
+            holder.ivPhysicalAddressStatus.setImageResource(android.R.drawable.checkbox_on_background);
+            holder.ivPhysicalAddressStatus.setImageTintList(ColorStateList.valueOf(accent));
+            holder.tvPhysicalAddressStatus.setVisibility(View.GONE);
+            holder.tvPhysicalAddressTitle.setText(context.getString(
+                    R.string.task_physical_address_matched, physicalContext.addressLabel));
+            holder.tvPhysicalAddressTitle.setTextColor(text);
+            holder.tvPhysicalAddressDetails.setVisibility(View.VISIBLE);
+            holder.tvPhysicalAddressDetails.setText(physicalContext.details);
+            holder.tvPhysicalAddressDetails.setTextColor(text);
+            holder.cardPhysicalAddress.setOnClickListener(v -> {
+                if (context instanceof TasksActivity) {
+                    ((TasksActivity) context).openPhysicalAddressFromTask(physicalContext.addressId);
+                } else {
+                    Intent intent = new Intent(context, AddressDetailActivity.class);
+                    intent.putExtra("addressId", physicalContext.addressId);
+                    context.startActivity(intent);
+                }
+            });
+        }
         
         String accountText = "Л/с: " + item.getAccountNumber();
         holder.tvAccount.setText(accountText);
@@ -146,6 +224,9 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
         TextView tvType, tvDateTime, tvAddress, tvClientName, tvAccount, tvTariffTech;
+        TextView tvPhysicalAddressTitle, tvPhysicalAddressDetails, tvPhysicalAddressStatus;
+        com.google.android.material.card.MaterialCardView cardPhysicalAddress;
+        android.widget.ImageView ivPhysicalAddressStatus;
         MaterialButton btnCall, btnHistory;
 
         public TaskViewHolder(@NonNull View itemView) {
@@ -154,6 +235,13 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             tvDateTime = itemView.findViewById(R.id.tvTaskDateTime);
             tvAddress = itemView.findViewById(R.id.tvTaskAddress);
             tvClientName = itemView.findViewById(R.id.tvTaskClientName);
+            cardPhysicalAddress = itemView.findViewById(R.id.cardTaskPhysicalAddress);
+            tvPhysicalAddressTitle = itemView.findViewById(R.id.tvTaskPhysicalAddressTitle);
+            tvPhysicalAddressDetails = itemView.findViewById(R.id.tvTaskPhysicalAddressDetails);
+            tvPhysicalAddressStatus = itemView.findViewById(R.id.tvTaskPhysicalAddressStatus);
+            ivPhysicalAddressStatus = itemView.findViewById(R.id.ivTaskPhysicalAddressStatus);
+            tvPhysicalAddressStatus = itemView.findViewById(R.id.tvTaskPhysicalAddressStatus);
+            ivPhysicalAddressStatus = itemView.findViewById(R.id.ivTaskPhysicalAddressStatus);
             tvAccount = itemView.findViewById(R.id.tvTaskAccount);
             tvTariffTech = itemView.findViewById(R.id.tvTaskTariffTech);
             btnCall = itemView.findViewById(R.id.btnTaskCall);

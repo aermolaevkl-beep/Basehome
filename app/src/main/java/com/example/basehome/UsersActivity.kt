@@ -33,6 +33,7 @@ class UsersActivity : AppCompatActivity() {
                 val lastSeen = u.child("lastSeen").getValue(Long::class.java) ?: 0L
                 val isAdmin = u.child("isAdmin").getValue(Boolean::class.java) ?: false
                 val selectedCity = u.child("selectedCity").getValue(String::class.java) ?: ""
+                val appVersion = u.child("appVersion").getValue(String::class.java) ?: ""
 
                 newList.add(UserDetail(
                     uid = uid,
@@ -43,7 +44,8 @@ class UsersActivity : AppCompatActivity() {
                     isOnline = isOnline,
                     lastSeen = lastSeen,
                     isAdmin = isAdmin,
-                    selectedCity = selectedCity
+                    selectedCity = selectedCity,
+                    appVersion = appVersion
                 ))
             }
             newList.sortWith(compareByDescending<UserDetail> { it.isOnline }.thenByDescending { it.addressCount })

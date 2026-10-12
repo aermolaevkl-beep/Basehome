@@ -58,6 +58,7 @@ public class PhysicalAddressActivity extends AppCompatActivity {
         ImageButton btnBack = findViewById(R.id.btnBackPhysical);
 
         rvAddresses.setLayoutManager(new LinearLayoutManager(this));
+        rvAddresses.setClipToPadding(false);
         
         adapter = new AddressAdapter(new ArrayList<>(), 
             address -> {

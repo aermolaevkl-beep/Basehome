@@ -22,6 +22,7 @@ class UsersAdapter(
         val tvEmail: TextView = view.findViewById(R.id.tvUserDetailEmail)
         val tvAddresses: TextView = view.findViewById(R.id.tvUserDetailAddressCount)
         val tvComments: TextView = view.findViewById(R.id.tvUserDetailCommentCount)
+        val tvAppVersion: TextView = view.findViewById(R.id.tvUserDetailAppVersion)
         val vStatus: View = view.findViewById(R.id.vOnlineStatus)
         val tvLastSeen: TextView = view.findViewById(R.id.tvLastSeen)
         val btnToggleAdminStatus: MaterialButton = view.findViewById(R.id.btnToggleAdminStatus)
@@ -52,6 +53,11 @@ class UsersAdapter(
         holder.tvEmail.text = user.email
         holder.tvAddresses.text = "Адресов: ${user.addressCount}"
         holder.tvComments.text = "Комментариев: ${user.commentCount}"
+        holder.tvAppVersion.text = if (user.appVersion.isBlank()) {
+            holder.itemView.context.getString(R.string.user_app_version_unknown)
+        } else {
+            holder.itemView.context.getString(R.string.user_app_version, user.appVersion)
+        }
 
         val statusColor = if (user.isOnline) android.R.color.holo_green_light else android.R.color.holo_red_light
         val shape = GradientDrawable().apply {

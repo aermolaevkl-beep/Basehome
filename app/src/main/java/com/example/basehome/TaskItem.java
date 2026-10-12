@@ -1,6 +1,5 @@
 package com.example.basehome;
 
-import android.util.Log;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,8 +11,6 @@ import java.util.Locale;
 import java.util.Set;
 
 public class TaskItem {
-    private static final String TAG = "TaskItem";
-
     private final String type;
     private final String dateTime;
     private final String installerName;
@@ -213,8 +210,6 @@ public class TaskItem {
 
         String[] instWords = instClean.split("\\s+");
         String[] userWords = userClean.split("\\s+");
-
-        Log.d(TAG, "Matching user - userName: '" + userName + "' with installerName: '" + installerName + "'");
 
         List<String> userSurnames = new ArrayList<>();
         List<String> userFirstNames = new ArrayList<>();

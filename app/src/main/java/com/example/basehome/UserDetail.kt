@@ -9,5 +9,6 @@ data class UserDetail(
     val isOnline: Boolean = false,
     val lastSeen: Long = 0,
     val isAdmin: Boolean = false,
-    val selectedCity: String = ""
+    val selectedCity: String = "",
+    val appVersion: String = ""
 )

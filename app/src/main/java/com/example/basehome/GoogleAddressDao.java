@@ -11,6 +11,12 @@ public interface GoogleAddressDao {
     @Query("SELECT * FROM google_addresses WHERE city = :city")
     List<GoogleAddressEntity> getEntitiesForCity(String city);
 
+    @Query("SELECT COUNT(*) FROM google_addresses WHERE city = :city")
+    int getCountForCity(String city);
+
+    @Query("SELECT * FROM google_addresses WHERE city = :city AND streetHouseKey IN (:streetHouseKeys)")
+    List<GoogleAddressEntity> getEntitiesForCityAndHouseKeys(String city, List<String> streetHouseKeys);
+
     @Query("SELECT * FROM google_addresses")
     List<GoogleAddressEntity> getAllEntities();
 

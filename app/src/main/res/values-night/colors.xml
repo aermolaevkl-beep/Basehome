@@ -4,12 +4,24 @@
     <color name="brand_primary">#B4C9DC</color>
     <color name="brand_secondary">#D0E1F0</color>
     <color name="brand_accent">#C3D0BC</color>
+    <color name="address_card_stroke">#45414A</color>
 
     <color name="card_bg_physical">#293744</color>
     <color name="card_bg_business">#3B352D</color>
     <color name="card_bg_google">#303A3E</color>
+    <color name="card_bg_tasks">#2E3A33</color>
 
     <color name="text_on_card_physical">#D6E6F4</color>
     <color name="text_on_card_business">#E7D8C2</color>
     <color name="text_on_card_google">#D9E1E3</color>
+    <color name="text_on_card_tasks">#D7EBDD</color>
+
+    <color name="task_address_found_bg">#263A2D</color>
+    <color name="task_address_found_accent">#8BCB97</color>
+    <color name="task_address_found_text">#DCEBDE</color>
+    <color name="task_address_missing_bg">#443920</color>
+    <color name="task_address_missing_accent">#E8B95F</color>
+    <color name="task_address_missing_text">#F3E5C8</color>
+    <color name="task_card_neutral_bg">#29272D</color>
+    <color name="task_card_neutral_stroke">#514C55</color>
 </resources>

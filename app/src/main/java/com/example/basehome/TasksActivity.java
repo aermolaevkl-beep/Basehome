@@ -1,8 +1,11 @@
 package com.example.basehome;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 import android.net.Uri;
 import android.util.JsonReader;
 import android.util.JsonToken;
@@ -20,8 +23,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
@@ -33,7 +38,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +52,8 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 public class TasksActivity extends AppCompatActivity {
+
+    private static final String TAG = "TasksActivity";
 
     private LinearLayout llLoadingContainer;
     private TextView tvLoadingMessage, tvEmptyTasks, tvToolbarTitle;
@@ -65,17 +71,21 @@ public class TasksActivity extends AppCompatActivity {
     private volatile boolean hasDisplayedTasks = false;
     private boolean hasCachedTasks = false;
     private boolean manualRefreshInProgress = false;
+    private boolean refreshAddressContextOnResume = false;
+    private boolean addressContextRefreshInProgress = false;
     private final java.util.concurrent.atomic.AtomicBoolean fetchInProgress = new java.util.concurrent.atomic.AtomicBoolean(false);
     private Call activeTasksCall;
     private Bundle savedInstanceStateRef;
 
     private static List<TaskDateGroup> cachedDateGroups = null;
     private static Map<String, ArrayList<String>> cachedAddressHistoryMap = null;
+    private static Map<String, TaskAdapter.PhysicalAddressContext> cachedPhysicalAddressContextMap = null;
     private static String cachedUserNameSession = "";
 
     public static void clearSessionMemoryCache() {
         cachedDateGroups = null;
         cachedAddressHistoryMap = null;
+        cachedPhysicalAddressContextMap = null;
         cachedUserNameSession = "";
     }
 
@@ -100,7 +110,7 @@ public class TasksActivity extends AppCompatActivity {
 
         rvTasks.setLayoutManager(new LinearLayoutManager(this));
 
-        taskAdapter = new TaskAdapter();
+        taskAdapter = new TaskAdapter(this::createPhysicalAddressFromTask);
         dateAdapter = new TaskDateAdapter(dateGroup -> {
             // Show tasks for selected date
             isShowingTasksForDate = true;
@@ -133,16 +143,16 @@ public class TasksActivity extends AppCompatActivity {
                 Toast.makeText(this, "Не удалось определить пользователя", Toast.LENGTH_SHORT).show();
                 return;
             }
+            if (manualRefreshInProgress) {
+                Toast.makeText(this, "Обновление уже выполняется", Toast.LENGTH_SHORT).show();
+                return;
+            }
             clearSessionMemoryCache();
             manualRefreshInProgress = true;
             btnRefreshTasks.setEnabled(false);
-            tvLoadingMessage.setText("Обновление задач...");
+            tvLoadingMessage.setText("Проверка профиля и обновление задач...");
             llLoadingContainer.setVisibility(View.VISIBLE);
-            if (auth.getCurrentUser() != null) {
-                loadUserProfileAndTasks();
-            } else {
-                fetchTasksFromGoogleSheets();
-            }
+            refreshTasksForSignedInUser();
         });
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -159,6 +169,7 @@ public class TasksActivity extends AppCompatActivity {
             hasDisplayedTasks = true;
             llLoadingContainer.setVisibility(View.GONE);
             taskAdapter.setAddressHistoryMap(cachedAddressHistoryMap);
+            taskAdapter.setPhysicalAddressContextMap(cachedPhysicalAddressContextMap);
             dateAdapter.updateDateGroups(cachedDateGroups);
 
             if (isShowingTasksForDate && tvToolbarTitle != null) {
@@ -218,6 +229,15 @@ public class TasksActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (refreshAddressContextOnResume && isShowingTasksForDate && !addressContextRefreshInProgress) {
+            refreshAddressContextOnResume = false;
+            refreshPhysicalAddressContext();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         if (activeTasksCall != null) {
             activeTasksCall.cancel();
@@ -248,6 +268,56 @@ public class TasksActivity extends AppCompatActivity {
             .followRedirects(true)
             .build();
 
+    private void refreshTasksForSignedInUser() {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            currentUserName = "";
+            manualRefreshInProgress = false;
+            fetchInProgress.set(false);
+            btnRefreshTasks.setEnabled(true);
+            llLoadingContainer.setVisibility(View.GONE);
+            Toast.makeText(this, "Сессия входа не найдена. Войдите снова.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        final long firebaseStartTime = SystemClock.elapsedRealtime();
+        Log.i(TAG, "Refresh profile lookup started; uid=" + user.getUid()
+                + ", email=" + user.getEmail());
+        FirebaseDatabase.getInstance().getReference("users").child(user.getUid()).child("name")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (isFinishing() || isDestroyed()) return;
+                        Log.i(TAG, "Timing: Firebase profile lookup for refresh = "
+                                + (SystemClock.elapsedRealtime() - firebaseStartTime) + " ms");
+                        String profileName = snapshot.getValue(String.class);
+                        String resolvedName = profileName != null && !profileName.trim().isEmpty()
+                                ? profileName.trim()
+                                : (user.getEmail() != null ? user.getEmail() : "");
+                        if (resolvedName.isEmpty()) {
+                            finishManualRefresh("Не удалось определить имя пользователя. Обновление отменено.");
+                            return;
+                        }
+
+                        currentUserName = resolvedName;
+                        getSharedPreferences("user_prefs", MODE_PRIVATE).edit()
+                                .putString("saved_user_name", resolvedName)
+                                .apply();
+                        Log.i(TAG, "Refreshing tasks for signed-in uid=" + user.getUid()
+                                + ", profileName=" + resolvedName);
+                        fetchTasksFromGoogleSheets();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        if (isFinishing() || isDestroyed()) return;
+                        Log.w(TAG, "Refresh profile lookup cancelled: " + error.getMessage());
+                        finishManualRefresh("Не удалось проверить профиль. Обновление отменено.");
+                    }
+                });
+    }
+
     private void loadUserProfileAndTasks() {
         FirebaseUser user = auth.getCurrentUser();
         if (user == null) {
@@ -261,10 +331,13 @@ public class TasksActivity extends AppCompatActivity {
             tvLoadingMessage.setText("Загрузка задач...");
         }
 
+        final long firebaseStartTime = SystemClock.elapsedRealtime();
         FirebaseDatabase.getInstance().getReference("users").child(user.getUid()).child("name")
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Log.i(TAG, "Timing: Firebase profile lookup = "
+                                + (SystemClock.elapsedRealtime() - firebaseStartTime) + " ms");
                         String name = snapshot.getValue(String.class);
                         String resolvedName = name != null ? name : (user.getEmail() != null ? user.getEmail() : "");
                         if (!resolvedName.isEmpty()) {
@@ -276,6 +349,8 @@ public class TasksActivity extends AppCompatActivity {
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
+                        Log.i(TAG, "Timing: Firebase profile lookup failed after "
+                                + (SystemClock.elapsedRealtime() - firebaseStartTime) + " ms");
                         if (currentUserName.isEmpty()) {
                             currentUserName = user.getEmail() != null ? user.getEmail() : "";
                         }
@@ -287,13 +362,10 @@ public class TasksActivity extends AppCompatActivity {
                 });
     }
 
-    private static List<GoogleAddressEntity> memoryCachedEntities = null;
-    private static final Object addressCacheLock = new Object();
+    private static final String ADDRESS_DATABASE_CITY = "Могилев";
 
     public static void clearAddressMemoryCache() {
-        synchronized (addressCacheLock) {
-            memoryCachedEntities = null;
-        }
+        // History records are fetched from Room by indexed house keys for every task refresh.
     }
 
     private void loadCachedTasksIfAvailable() {
@@ -307,7 +379,7 @@ public class TasksActivity extends AppCompatActivity {
                         reader.setLenient(true);
                         recursiveParse(reader, rawRows);
                     }
-                    processAndDisplayTasks(rawRows);
+                    processAndDisplayTasks(rawRows, SystemClock.elapsedRealtime());
                 } catch (Exception e) {
                     mainHandler.post(() -> {
                         llLoadingContainer.setVisibility(View.GONE);
@@ -342,10 +414,13 @@ public class TasksActivity extends AppCompatActivity {
         }
 
         String url = buildTasksUrl();
+        final long httpStartTime = SystemClock.elapsedRealtime();
         activeTasksCall = HTTP_CLIENT.newCall(new Request.Builder().url(url).build());
         activeTasksCall.enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                Log.i(TAG, "Timing: HTTP request to Google Apps Script failed after "
+                        + (SystemClock.elapsedRealtime() - httpStartTime) + " ms");
                 mainHandler.post(() -> {
                     fetchInProgress.set(false);
                     if (manualRefreshInProgress) {
@@ -362,6 +437,9 @@ public class TasksActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
+                Log.i(TAG, "Timing: HTTP request to Google Apps Script = "
+                        + (SystemClock.elapsedRealtime() - httpStartTime) + " ms (status "
+                        + response.code() + ")");
                 if (!response.isSuccessful()) {
                     mainHandler.post(() -> {
                         fetchInProgress.set(false);
@@ -378,8 +456,10 @@ public class TasksActivity extends AppCompatActivity {
                     return;
                 }
 
+                final long responseProcessingStartTime = SystemClock.elapsedRealtime();
                 try (ResponseBody body = response.body()) {
                     if (body == null) {
+                        Log.i(TAG, "Timing: response processing = 0 ms (empty body)");
                         mainHandler.post(() -> {
                             fetchInProgress.set(false);
                             if (manualRefreshInProgress) {
@@ -392,17 +472,30 @@ public class TasksActivity extends AppCompatActivity {
                         return;
                     }
 
+                    long bodyReadStartTime = SystemClock.elapsedRealtime();
                     String rawContent = body.string();
+                    long bodyReadMs = SystemClock.elapsedRealtime() - bodyReadStartTime;
+                    long jsonParseStartTime = SystemClock.elapsedRealtime();
                     List<String> rawRows = new ArrayList<>();
                     try (JsonReader reader = new JsonReader(new StringReader(rawContent))) {
                         reader.setLenient(true);
                         recursiveParse(reader, rawRows);
                     }
+                    long jsonParseMs = SystemClock.elapsedRealtime() - jsonParseStartTime;
+                    long cacheWriteStartTime = SystemClock.elapsedRealtime();
                     getSharedPreferences("tasks_cache", MODE_PRIVATE).edit().putString("raw_rows_json", rawContent).apply();
+                    long cacheWriteMs = SystemClock.elapsedRealtime() - cacheWriteStartTime;
+                    Log.i(TAG, "Timing: response bytes=" + rawContent.length()
+                            + ", rows=" + rawRows.size()
+                            + ", bodyRead=" + bodyReadMs + " ms"
+                            + ", jsonParse=" + jsonParseMs + " ms"
+                            + ", cacheWrite=" + cacheWriteMs + " ms");
 
-                    executor.execute(() -> processAndDisplayTasks(rawRows));
+                    executor.execute(() -> processAndDisplayTasks(rawRows, responseProcessingStartTime));
 
                 } catch (Exception e) {
+                    Log.i(TAG, "Timing: response processing failed after "
+                            + (SystemClock.elapsedRealtime() - responseProcessingStartTime) + " ms");
                     mainHandler.post(() -> {
                         fetchInProgress.set(false);
                         if (manualRefreshInProgress) {
@@ -420,6 +513,7 @@ public class TasksActivity extends AppCompatActivity {
 
     private void finishManualRefresh(String message) {
         manualRefreshInProgress = false;
+        fetchInProgress.set(false);
         btnRefreshTasks.setEnabled(true);
         fetchInProgress.set(false);
         llLoadingContainer.setVisibility(View.GONE);
@@ -431,92 +525,363 @@ public class TasksActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    private void processAndDisplayTasks(List<String> rawRows) {
+    private void processAndDisplayTasks(List<String> rawRows, long responseProcessingStartTime) {
+        long rowParseStartTime = SystemClock.elapsedRealtime();
+        int parsedRows = 0;
+        int matchedRows = 0;
         List<TaskItem> matchedTasks = new ArrayList<>();
         for (String row : rawRows) {
             TaskItem item = TaskItem.fromRowString(row);
             if (item != null) {
+                parsedRows++;
                 if (TaskItem.matchesUser(item.getInstallerName(), currentUserName)) {
                     matchedTasks.add(item);
+                    matchedRows++;
                 }
             }
         }
+        long rowParseAndFilterMs = SystemClock.elapsedRealtime() - rowParseStartTime;
 
+        long groupingStartTime = SystemClock.elapsedRealtime();
         List<TaskDateGroup> dateGroups = groupTasksByDate(matchedTasks);
-        Map<String, ArrayList<String>> addressHistoryMap = buildAddressHistoryMap(matchedTasks);
+        long groupingMs = SystemClock.elapsedRealtime() - groupingStartTime;
 
-        mainHandler.post(() -> applyProcessedTasks(matchedTasks, dateGroups, addressHistoryMap));
+        long historyStartTime = SystemClock.elapsedRealtime();
+        Map<String, ArrayList<String>> addressHistoryMap = buildAddressHistoryMap(matchedTasks);
+        long historyMs = SystemClock.elapsedRealtime() - historyStartTime;
+        Map<String, TaskAdapter.PhysicalAddressContext> physicalAddressContextMap =
+                buildPhysicalAddressContextMap(matchedTasks);
+
+        Log.i(TAG, "Timing: rowParseAndFilter=" + rowParseAndFilterMs + " ms"
+                + ", parsedRows=" + parsedRows + ", matchedTasks=" + matchedRows
+                + ", grouping=" + groupingMs + " ms"
+                + ", addressHistory=" + historyMs + " ms");
+        mainHandler.post(() -> applyProcessedTasks(
+                matchedTasks, dateGroups, addressHistoryMap, physicalAddressContextMap,
+                responseProcessingStartTime));
     }
 
     private Map<String, ArrayList<String>> buildAddressHistoryMap(List<TaskItem> matchedTasks) {
         Map<String, ArrayList<String>> addressHistoryMap = new HashMap<>();
+        long historyBuildStartTime = SystemClock.elapsedRealtime();
+        long roomQueryMs = 0L;
+        int targetHouseKeyCount = 0;
+        int queriedEntityCount = 0;
         try {
             Set<String> targetHouseKeys = new HashSet<>();
             for (TaskItem task : matchedTasks) {
-                String hk = GoogleAddress.parseHouseKey(task.getAddress());
-                if (!hk.isEmpty()) {
-                    targetHouseKeys.add(hk);
+                String houseKey = GoogleAddress.parseHouseKey(task.getAddress());
+                if (!houseKey.isEmpty()) {
+                    targetHouseKeys.add(houseKey);
                 }
             }
 
-            if (!targetHouseKeys.isEmpty()) {
-                synchronized (addressCacheLock) {
-                    if (memoryCachedEntities == null) {
-                        AppDatabase db = AppDatabase.getInstance(TasksActivity.this);
-                        memoryCachedEntities = db.googleAddressDao().getAllEntities();
-                    }
-                }
-                List<GoogleAddressEntity> entities = memoryCachedEntities;
-                if (entities != null) {
-                    for (GoogleAddressEntity entity : entities) {
-                        String fullText = entity.getFullText();
-                        if (fullText == null || fullText.trim().isEmpty()) continue;
-
-                        String entityHouseKey = entity.getStreetHouseKey();
-                        boolean isRelevant = false;
-                        for (String targetKey : targetHouseKeys) {
-                            if ((entityHouseKey != null && entityHouseKey.contains(targetKey))
-                                    || fullText.toLowerCase(Locale.ROOT).contains(targetKey)) {
-                                isRelevant = true;
-                                break;
-                            }
-                        }
-
-                        if (isRelevant) {
-                            String fullKey = GoogleAddress.parseFullAddressKey(fullText);
-                            if (!fullKey.isEmpty()) {
-                                ArrayList<String> visits = addressHistoryMap.get(fullKey);
-                                if (visits == null) {
-                                    visits = new ArrayList<>();
-                                    addressHistoryMap.put(fullKey, visits);
-                                }
-                                visits.add(fullText);
-                            }
-
-                            String houseKey = GoogleAddress.parseHouseKey(fullText);
-                            if (!houseKey.isEmpty() && !houseKey.equals(fullKey)) {
-                                ArrayList<String> houseVisits = addressHistoryMap.get(houseKey);
-                                if (houseVisits == null) {
-                                    houseVisits = new ArrayList<>();
-                                    addressHistoryMap.put(houseKey, houseVisits);
-                                }
-                                houseVisits.add(fullText);
-                            }
-                        }
-                    }
-                }
+            targetHouseKeyCount = targetHouseKeys.size();
+            if (targetHouseKeys.isEmpty()) {
+                Log.i(TAG, "Timing: addressHistory skipped; tasks=" + matchedTasks.size()
+                        + ", no parseable house keys");
+                return addressHistoryMap;
             }
-        } catch (Exception ignored) {}
+
+            long roomQueryStartTime = SystemClock.elapsedRealtime();
+            List<GoogleAddressEntity> entities = AppDatabase.getInstance(getApplicationContext())
+                    .googleAddressDao()
+                    .getEntitiesForCityAndHouseKeys(ADDRESS_DATABASE_CITY, new ArrayList<>(targetHouseKeys));
+            roomQueryMs = SystemClock.elapsedRealtime() - roomQueryStartTime;
+            if (entities == null) return addressHistoryMap;
+            queriedEntityCount = entities.size();
+
+            for (GoogleAddressEntity entity : entities) {
+                if (!ADDRESS_DATABASE_CITY.equalsIgnoreCase(entity.getCity())) continue;
+                String fullText = entity.getFullText();
+                if (fullText == null || fullText.trim().isEmpty()) continue;
+
+                // The database import already stores normalized street+house and
+                // apartment fields. Use those instead of re-parsing every historical
+                // fullText row (which also contains date, installer and other metadata).
+                String houseKey = entity.getStreetHouseKey();
+                if (houseKey.isEmpty() || !targetHouseKeys.contains(houseKey)) continue;
+                String fullKey = GoogleAddress.getFullAddressKey(houseKey, entity.getApartment());
+
+                addAddressVisit(addressHistoryMap, fullKey, fullText);
+                addAddressVisit(addressHistoryMap, houseKey, fullText);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Address history lookup failed", e);
+        } finally {
+            Log.i(TAG, "Timing: addressHistoryBuild="
+                    + (SystemClock.elapsedRealtime() - historyBuildStartTime) + " ms"
+                    + ", roomQuery=" + roomQueryMs + " ms"
+                    + ", targetHouseKeys=" + targetHouseKeyCount
+                    + ", queriedEntities=" + queriedEntityCount
+                    + ", matchedHistoryKeys=" + addressHistoryMap.size());
+        }
         return addressHistoryMap;
     }
 
-    private void applyProcessedTasks(List<TaskItem> matchedTasks, List<TaskDateGroup> dateGroups, Map<String, ArrayList<String>> addressHistoryMap) {
+    private void addAddressVisit(Map<String, ArrayList<String>> historyMap, String key, String visit) {
+        if (key == null || key.isEmpty()) return;
+        ArrayList<String> visits = historyMap.get(key);
+        if (visits == null) {
+            visits = new ArrayList<>();
+            historyMap.put(key, visits);
+        }
+        visits.add(visit);
+    }
+
+    private void createPhysicalAddressFromTask(String streetHouse) {
+        refreshAddressContextOnResume = true;
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, R.string.task_physical_address_create_no_user, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        GoogleAddress parsed = new GoogleAddress(streetHouse);
+        String cleanStreetHouse = parsed.getStreetHouse();
+        if (cleanStreetHouse.isEmpty() || !GoogleAddress.isValidAddressRow(cleanStreetHouse)) {
+            Toast.makeText(this, R.string.task_physical_address_parse_error, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String parsedStreet = cleanStreetHouse;
+        String parsedHouse = "";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("^(.*?)[, ]+((?:дом\\s*)?\\d+[\\p{L}]?(?:[-/]\\d+[\\p{L}]?)?)$", java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(cleanStreetHouse.trim());
+        if (matcher.matches()) {
+            parsedStreet = matcher.group(1) == null ? "" : matcher.group(1).trim();
+            parsedHouse = matcher.group(2) == null ? "" : matcher.group(2).trim().replaceFirst("(?i)^дом\\s*", "");
+        }
+        if (parsedStreet.isEmpty() || parsedHouse.isEmpty()) {
+            Toast.makeText(this, R.string.task_physical_address_parse_error, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String city = CityManager.getSelectedCity(this);
+        if (city == null || city.trim().isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(city)) {
+            city = ADDRESS_DATABASE_CITY;
+        }
+        final String selectedCity = city;
+        final String street = parsedStreet;
+        final String house = parsedHouse;
+        String houseKey = GoogleAddress.parseHouseKey(street + ", " + house);
+        Toast.makeText(this, R.string.task_physical_address_create_title, Toast.LENGTH_SHORT).show();
+        FirebaseDatabase.getInstance().getReference("addresses").get()
+                .addOnSuccessListener(snapshot -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        Address existing = child.getValue(Address.class);
+                        if (existing == null) continue;
+                        String existingCity = existing.getCity() == null ? ADDRESS_DATABASE_CITY : existing.getCity();
+                        String existingKey = GoogleAddress.parseHouseKey(
+                                (existing.getStreet() == null ? "" : existing.getStreet()) + ", "
+                                        + (existing.getHouse() == null ? "" : existing.getHouse()));
+                        if (selectedCity.equalsIgnoreCase(existingCity) && houseKey.equals(existingKey)) {
+                            openPhysicalAddress(child.getKey());
+                            return;
+                        }
+                    }
+                    createPhysicalAddress(street, house, selectedCity, user.getUid());
+                })
+                .addOnFailureListener(error -> Toast.makeText(this,
+                        getString(R.string.task_physical_address_create_failed,
+                                error.getLocalizedMessage() == null ? "" : error.getLocalizedMessage()),
+                        Toast.LENGTH_LONG).show());
+    }
+
+    private void createPhysicalAddress(String street, String house, String city, String userId) {
+        DatabaseReference addresses = FirebaseDatabase.getInstance().getReference("addresses");
+        String addressId = addresses.push().getKey();
+        if (addressId == null) return;
+
+        FirebaseDatabase.getInstance().getReference("users").child(userId).child("name").get()
+                .addOnSuccessListener(userSnapshot -> {
+                    String userName = userSnapshot.getValue(String.class);
+                    FirebaseUser currentUser = auth.getCurrentUser();
+                    if (userName == null || userName.trim().isEmpty()) {
+                        userName = currentUser != null && currentUser.getEmail() != null
+                                ? currentUser.getEmail() : getString(R.string.anonymous);
+                    }
+                    Address address = new Address(street, house, city, userId, userName);
+                    addresses.child(addressId).setValue(address)
+                            .addOnSuccessListener(unused -> {
+                                Toast.makeText(this, R.string.task_physical_address_created, Toast.LENGTH_SHORT).show();
+                                openPhysicalAddress(addressId);
+                            })
+                            .addOnFailureListener(error -> Toast.makeText(this,
+                                    getString(R.string.task_physical_address_create_failed,
+                                            error.getLocalizedMessage() == null ? "" : error.getLocalizedMessage()),
+                                    Toast.LENGTH_LONG).show());
+                })
+                .addOnFailureListener(error -> Toast.makeText(this,
+                        getString(R.string.task_physical_address_create_failed,
+                                error.getLocalizedMessage() == null ? "" : error.getLocalizedMessage()),
+                        Toast.LENGTH_LONG).show());
+    }
+
+    public void openPhysicalAddressFromTask(String addressId) {
+        openPhysicalAddress(addressId);
+    }
+
+    private void openPhysicalAddress(String addressId) {
+        refreshAddressContextOnResume = true;
+        Intent intent = new Intent(this, AddressDetailActivity.class);
+        intent.putExtra("addressId", addressId);
+        startActivity(intent);
+    }
+
+    private void refreshPhysicalAddressContext() {
+        if (addressContextRefreshInProgress || isFinishing() || isDestroyed()) return;
+        addressContextRefreshInProgress = true;
+        List<TaskItem> visibleTasks = getVisibleTaskItems();
+        new Thread(() -> {
+            Map<String, TaskAdapter.PhysicalAddressContext> refreshed =
+                    buildPhysicalAddressContextMap(visibleTasks);
+            mainHandler.post(() -> {
+                addressContextRefreshInProgress = false;
+                if (isFinishing() || isDestroyed()) return;
+                cachedPhysicalAddressContextMap = refreshed;
+                taskAdapter.setPhysicalAddressContextMap(refreshed);
+            });
+        }, "address-context-refresh").start();
+    }
+
+    private List<TaskItem> getVisibleTaskItems() {
+        List<TaskItem> tasks = new ArrayList<>();
+        if (cachedDateGroups != null) {
+            for (TaskDateGroup group : cachedDateGroups) {
+                tasks.addAll(group.getTasks());
+            }
+        }
+        return tasks;
+    }
+
+    private Map<String, TaskAdapter.PhysicalAddressContext> buildPhysicalAddressContextMap(
+            List<TaskItem> matchedTasks) {
+        Map<String, TaskAdapter.PhysicalAddressContext> result = new HashMap<>();
+        Set<String> taskHouseKeys = new HashSet<>();
+        for (TaskItem task : matchedTasks) {
+            String key = GoogleAddress.parseHouseKey(task.getAddress());
+            if (key != null && !key.isEmpty()) taskHouseKeys.add(key);
+        }
+        if (taskHouseKeys.isEmpty()) return result;
+
+        try {
+            DataSnapshot addressSnapshot = Tasks.await(
+                    FirebaseDatabase.getInstance().getReference("addresses").get(),
+                    10, TimeUnit.SECONDS);
+            Map<String, Address> matchedAddresses = new LinkedHashMap<>();
+            for (DataSnapshot child : addressSnapshot.getChildren()) {
+                Address address = child.getValue(Address.class);
+                if (address == null) continue;
+                String streetHouse = ((address.getStreet() == null ? "" : address.getStreet()) + ", "
+                        + (address.getHouse() == null ? "" : address.getHouse())).trim();
+                String key = GoogleAddress.parseHouseKey(streetHouse);
+                if (key.isEmpty() || !taskHouseKeys.contains(key)) continue;
+                address.setId(child.getKey());
+                matchedAddresses.put(key, address);
+            }
+
+            Map<String, com.google.android.gms.tasks.Task<DataSnapshot>> entranceTasks = new LinkedHashMap<>();
+            Map<String, com.google.android.gms.tasks.Task<DataSnapshot>> commentTasks = new LinkedHashMap<>();
+            for (Map.Entry<String, Address> entry : matchedAddresses.entrySet()) {
+                String id = entry.getValue().getId();
+                if (id == null || id.isEmpty()) continue;
+                entranceTasks.put(entry.getKey(), FirebaseDatabase.getInstance().getReference("entrances")
+                        .child(id).get());
+                commentTasks.put(entry.getKey(), FirebaseDatabase.getInstance().getReference("comments")
+                        .child(id).get());
+            }
+            for (com.google.android.gms.tasks.Task<DataSnapshot> task : entranceTasks.values()) {
+                task.addOnFailureListener(error -> Log.w(TAG, "Could not load address entrances", error));
+            }
+            for (com.google.android.gms.tasks.Task<DataSnapshot> task : commentTasks.values()) {
+                task.addOnFailureListener(error -> Log.w(TAG, "Could not load address comments", error));
+            }
+
+            for (Map.Entry<String, Address> entry : matchedAddresses.entrySet()) {
+                String key = entry.getKey();
+                Address address = entry.getValue();
+                String id = address.getId();
+                if (id == null || id.isEmpty()) continue;
+                DataSnapshot entrances;
+                DataSnapshot comments;
+                try {
+                    entrances = Tasks.await(entranceTasks.get(key), 10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not load entrances for address " + id, e);
+                    entrances = null;
+                }
+                try {
+                    comments = Tasks.await(commentTasks.get(key), 10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not load comments for address " + id, e);
+                    comments = null;
+                }
+
+                List<String> entranceDetails = new ArrayList<>();
+                for (DataSnapshot entranceNode : entrances == null
+                        ? new ArrayList<DataSnapshot>() : entrances.getChildren()) {
+                    Entrance entrance = entranceNode.getValue(Entrance.class);
+                    if (entrance == null) continue;
+                    StringBuilder detail = new StringBuilder("Подъезд ")
+                            .append(entrance.getNumber() == null ? "?" : entrance.getNumber());
+                    if (entrance.getIntercomCode() != null && !entrance.getIntercomCode().trim().isEmpty()) {
+                        detail.append(" · домофон: ").append(entrance.getIntercomCode().trim());
+                    }
+                    if (entrance.getCrossFloor() != null && !entrance.getCrossFloor().trim().isEmpty()) {
+                        detail.append(" · этаж кросса: ").append(entrance.getCrossFloor().trim());
+                    }
+                    if (entrance.getBasementKey() != null && !entrance.getBasementKey().trim().isEmpty()) {
+                        detail.append(" · подвал: ").append(entrance.getBasementKey().trim());
+                    }
+                    entranceDetails.add(detail.toString());
+                }
+                entranceDetails.sort(String::compareToIgnoreCase);
+
+                List<Comment> addressComments = new ArrayList<>();
+                for (DataSnapshot commentNode : comments == null
+                        ? new ArrayList<DataSnapshot>() : comments.getChildren()) {
+                    Comment comment = commentNode.getValue(Comment.class);
+                    if (comment != null && comment.getText() != null && !comment.getText().trim().isEmpty()) {
+                        addressComments.add(comment);
+                    }
+                }
+                addressComments.sort((first, second) -> Long.compare(second.getTimestamp(), first.getTimestamp()));
+                List<String> detailLines = new ArrayList<>(entranceDetails);
+                int commentsToShow = Math.min(addressComments.size(), 2);
+                for (int i = 0; i < commentsToShow; i++) {
+                    String text = addressComments.get(i).getText().trim().replaceAll("\\s+", " ");
+                    if (text.length() > 100) text = text.substring(0, 97) + "…";
+                    detailLines.add("Комментарий: " + text);
+                }
+                if (detailLines.isEmpty()) detailLines.add("Подъезды и комментарии пока не добавлены");
+
+                String label = (address.getStreet() == null ? "" : address.getStreet()) + ", "
+                        + (address.getHouse() == null ? "" : address.getHouse());
+                result.put(key, new TaskAdapter.PhysicalAddressContext(
+                        id, label, android.text.TextUtils.join("\n", detailLines)));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Physical address lookup failed", e);
+        }
+        return result;
+    }
+
+    private void applyProcessedTasks(List<TaskItem> matchedTasks, List<TaskDateGroup> dateGroups,
+                                     Map<String, ArrayList<String>> addressHistoryMap,
+                                     Map<String, TaskAdapter.PhysicalAddressContext> physicalAddressContextMap,
+                                     long responseProcessingStartTime) {
+        Log.i(TAG, "Timing: response processing (parse + task filtering/grouping + display prep) = "
+                + (SystemClock.elapsedRealtime() - responseProcessingStartTime) + " ms");
         hasDisplayedTasks = true;
         fetchInProgress.set(false);
 
         // Save to session memory cache
         cachedDateGroups = dateGroups;
         cachedAddressHistoryMap = addressHistoryMap;
+        cachedPhysicalAddressContextMap = physicalAddressContextMap;
         cachedUserNameSession = currentUserName;
 
         if (manualRefreshInProgress) {
@@ -526,6 +891,7 @@ public class TasksActivity extends AppCompatActivity {
         }
         llLoadingContainer.setVisibility(View.GONE);
         taskAdapter.setAddressHistoryMap(addressHistoryMap);
+        taskAdapter.setPhysicalAddressContextMap(physicalAddressContextMap);
         dateAdapter.updateDateGroups(dateGroups);
 
         if (isShowingTasksForDate && tvToolbarTitle != null) {
