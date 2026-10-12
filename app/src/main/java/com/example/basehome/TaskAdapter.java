@@ -70,20 +70,31 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         if (phone != null && !phone.trim().isEmpty()) {
             holder.btnCall.setVisibility(View.VISIBLE);
             holder.btnCall.setOnClickListener(v -> {
+                String dialPhone = formatPhoneNumber(phone);
+
                 // Copy phone number to clipboard as well
                 ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clip = ClipData.newPlainText("Номер телефона", phone.trim());
+                ClipData clip = ClipData.newPlainText("Номер телефона", dialPhone);
                 if (clipboard != null) {
                     clipboard.setPrimaryClip(clip);
                 }
 
-                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.trim()));
+                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + dialPhone));
                 context.startActivity(intent);
-                Toast.makeText(context, "Номер скопирован и вызов: " + phone.trim(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Номер скопирован и вызов: " + dialPhone, Toast.LENGTH_SHORT).show();
             });
         } else {
             holder.btnCall.setVisibility(View.GONE);
         }
+    }
+
+    private String formatPhoneNumber(String phone) {
+        if (phone == null) return "";
+        String clean = phone.trim().replaceAll("[^0-9+]", "");
+        if (!clean.startsWith("+") && (clean.startsWith("375") || clean.startsWith("7") || clean.startsWith("380"))) {
+            return "+" + clean;
+        }
+        return clean;
     }
 
     @Override
