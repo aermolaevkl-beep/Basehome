@@ -17,17 +17,25 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
 
     private final List<TaskItem> tasks = new ArrayList<>();
+    private Map<String, ArrayList<String>> addressHistoryMap = new HashMap<>();
 
     public void updateTasks(List<TaskItem> newTasks) {
         tasks.clear();
         if (newTasks != null) {
             tasks.addAll(newTasks);
         }
+        notifyDataSetChanged();
+    }
+
+    public void setAddressHistoryMap(Map<String, ArrayList<String>> map) {
+        this.addressHistoryMap = map != null ? map : new HashMap<>();
         notifyDataSetChanged();
     }
 
@@ -66,13 +74,13 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
         holder.tvTariffTech.setText(item.getTariff() + " | " + item.getTechnology());
 
+        // Phone call and copy
         String phone = item.getClientPhone();
         if (phone != null && !phone.trim().isEmpty()) {
             holder.btnCall.setVisibility(View.VISIBLE);
             holder.btnCall.setOnClickListener(v -> {
                 String dialPhone = formatPhoneNumber(phone);
 
-                // Copy phone number to clipboard as well
                 ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("Номер телефона", dialPhone);
                 if (clipboard != null) {
@@ -85,6 +93,40 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             });
         } else {
             holder.btnCall.setVisibility(View.GONE);
+        }
+
+        // Address History
+        String rawAddress = item.getAddress();
+        String fullKey = GoogleAddress.parseFullAddressKey(rawAddress);
+        String houseKey = GoogleAddress.parseHouseKey(rawAddress);
+
+        ArrayList<String> pastVisits = addressHistoryMap.get(fullKey);
+        boolean isApartmentSpecific = pastVisits != null && !pastVisits.isEmpty();
+
+        if (!isApartmentSpecific && houseKey != null && !houseKey.isEmpty()) {
+            pastVisits = addressHistoryMap.get(houseKey);
+        }
+
+        if (pastVisits != null && !pastVisits.isEmpty()) {
+            holder.btnHistory.setVisibility(View.VISIBLE);
+            holder.btnHistory.setText("История выездов (" + pastVisits.size() + ")");
+            final ArrayList<String> visitsToPass = pastVisits;
+            final boolean isAptMatch = isApartmentSpecific;
+            holder.btnHistory.setOnClickListener(v -> {
+                Intent intent = new Intent(context, GoogleAddressDetailActivity.class);
+                GoogleAddress ga = new GoogleAddress(rawAddress);
+                intent.putExtra(GoogleAddressDetailActivity.EXTRA_ADDRESS, ga.getStreetHouse());
+                if (isAptMatch) {
+                    String apt = ga.getApartment();
+                    if (apt != null && !apt.isEmpty()) {
+                        intent.putExtra(GoogleAddressDetailActivity.EXTRA_APARTMENT, apt);
+                    }
+                }
+                intent.putStringArrayListExtra(GoogleAddressDetailActivity.EXTRA_VISITS, visitsToPass);
+                context.startActivity(intent);
+            });
+        } else {
+            holder.btnHistory.setVisibility(View.GONE);
         }
     }
 
@@ -104,7 +146,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
         TextView tvType, tvDateTime, tvAddress, tvClientName, tvAccount, tvTariffTech;
-        MaterialButton btnCall;
+        MaterialButton btnCall, btnHistory;
 
         public TaskViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -115,6 +157,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             tvAccount = itemView.findViewById(R.id.tvTaskAccount);
             tvTariffTech = itemView.findViewById(R.id.tvTaskTariffTech);
             btnCall = itemView.findViewById(R.id.btnTaskCall);
+            btnHistory = itemView.findViewById(R.id.btnTaskHistory);
         }
     }
 }

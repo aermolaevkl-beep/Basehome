@@ -8,19 +8,25 @@ import java.util.regex.Pattern;
 public class GoogleAddress {
 
     private static final Pattern KW_PATTERN = Pattern.compile(
-            "(?i)(.*?)\\s*,?\\s*\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*[0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?"
+            "(?i)(.*?)\\s*,?\\s*\\b(?:кв(?:артира)?|кв-ра|к|комн|комната|пом|помещение|apt|apartment)\\.?\\s*(?:№|#)?\\s*[0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?"
     );
     private static final Pattern DASH_PATTERN = Pattern.compile(
             "(?i)^([^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?)\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
     );
     private static final Pattern APT_KW_PATTERN = Pattern.compile(
-            "(?i)\\b(?:кв(?:артира)?|кв-ра|apt|apartment)\\.?\\s*(?:№|#)?\\s*([0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?)"
+            "(?i)\\b(?:кв(?:артира)?|кв-ра|к|комн|комната|пом|помещение|apt|apartment)\\.?\\s*(?:№|#)?\\s*([0-9]+[\\p{L}]?(?:[-/][0-9]+[\\p{L}]?)?)"
     );
     private static final Pattern APT_DASH_PATTERN = Pattern.compile(
             "(?i)^[^,;]*?\\b\\d+[\\p{L}]?(?:\\s*/\\s*\\d+)?(?:\\s*к(?:орп)?\\.?\\s*\\d+)?(?:\\s*-[а-яА-Яa-zA-Z])?\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
     );
+    private static final Pattern APT_SLASH_PATTERN = Pattern.compile(
+            "(?i)^[^,;]*?\\b\\d+[\\p{L}]?\\s*/\\s*([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
+    );
+    private static final Pattern APT_COMMA_PATTERN = Pattern.compile(
+            "(?i)^[^,;]*?\\b\\d+[\\p{L}]?\\s*,\\s*(?:кв\\.?\\s*)?([0-9]+[\\p{L}]?)(?:\\b|[\\s,;].*)"
+    );
     private static final Pattern PREFIX_PATTERN = Pattern.compile(
-            "(?i)\\b(?:ул|улица|д|дом|пер|переулок|пр-т|проспект)\\.?\\b"
+            "(?i)\\b(?:г|гор|город|г-д|обл|область|р-н|район|пос|поселок|пгт|с|село|деревня|д|ул|улица|дом|корп|корпус|пер|переулок|пр-т|проспект|пр|бульвар|б-р|ш|шоссе|проезд|могилев|могилёв|минск|гомель|витебск|гродно|брест|бобруйск|барановичи|борисов|пинск|орша|мозырь|солигорск|новополоцк|лида)\\.?\\b"
     );
     private static final Pattern NON_ALPHANUM_PATTERN = Pattern.compile(
             "[^\\p{L}\\p{N}]"
@@ -37,6 +43,78 @@ public class GoogleAddress {
     private static final Pattern DIGITS_PATTERN = Pattern.compile(
             ".*\\d+.*"
     );
+
+    private static final Pattern CLEAN_PREFIX_PAT = Pattern.compile(
+            "(?i)\\b(?:г|гор|город|г-д|обл|область|р-н|район|пос|поселок|пгт|с|село|деревня|могилев|могилёв|минск|гомель|витебск|гродно|брест|бобруйск|барановичи|борисов|пинск|орша|мозырь|солигорск|новополоцк|лида)\\.?\\b"
+    );
+    private static final Pattern CLEAN_STREET_PAT = Pattern.compile(
+            "(?i)\\b(?:ул|улица|д|дом|корп|корпус|пер|переулок|пр-т|проспект|пр|бульвар|б-р|ш|шоссе|проезд)\\.?\\b"
+    );
+    private static final Pattern APT_KW_PAT = Pattern.compile(
+            "(?i)(.*?)\\b(?:кв(?:артира)?|кв-ра|к|комн|комната|пом|помещение|apt|apartment)\\.?\\s*(?:№|#)?\\s*([0-9]+[\\p{L}]?)"
+    );
+    private static final Pattern APT_DASH_PAT = Pattern.compile(
+            "(?i)(.*?\\b\\d+[\\p{L}]?)\\s*-\\s*([0-9]+[\\p{L}]?)(?:\\b|\\s.*|$)"
+    );
+    private static final Pattern APT_COMMA_PAT = Pattern.compile(
+            "(?i)(.*?\\b\\d+[\\p{L}]?)\\s*,\\s*(?:кв\\.?\\s*)?([0-9]+[\\p{L}]?)(?:\\b|\\s.*|$)"
+    );
+    private static final Pattern APT_SLASH_PAT = Pattern.compile(
+            "(?i)(.*?\\b\\d+[\\p{L}]?)\\s*/\\s*([0-9]+[\\p{L}]?)(?:\\b|\\s.*|$)"
+    );
+
+    public static String parseFullAddressKey(String rawText) {
+        if (rawText == null) return "";
+        String s = rawText.replace('\u00A0', ' ').toLowerCase(java.util.Locale.ROOT).trim();
+        if (s.isEmpty()) return "";
+
+        s = CLEAN_PREFIX_PAT.matcher(s).replaceAll(" ");
+        s = CLEAN_STREET_PAT.matcher(s).replaceAll(" ");
+        s = s.replaceAll("\\s+", " ").trim();
+        if (s.isEmpty()) return "";
+
+        String houseStr = s;
+        String aptStr = "";
+
+        Matcher kw = APT_KW_PAT.matcher(s);
+        if (kw.find()) {
+            houseStr = kw.group(1);
+            aptStr = kw.group(2);
+        } else {
+            Matcher dash = APT_DASH_PAT.matcher(s);
+            if (dash.find()) {
+                houseStr = dash.group(1);
+                aptStr = dash.group(2);
+            } else {
+                Matcher comma = APT_COMMA_PAT.matcher(s);
+                if (comma.find()) {
+                    houseStr = comma.group(1);
+                    aptStr = comma.group(2);
+                } else {
+                    Matcher slash = APT_SLASH_PAT.matcher(s);
+                    if (slash.find()) {
+                        houseStr = slash.group(1);
+                        aptStr = slash.group(2);
+                    }
+                }
+            }
+        }
+
+        String houseKey = houseStr != null ? houseStr.replaceAll("[^\\p{L}\\p{N}]", "") : "";
+        String aptKey = aptStr != null ? aptStr.replaceAll("[^\\p{L}\\p{N}]", "") : "";
+
+        if (houseKey.isEmpty()) return "";
+        if (aptKey.isEmpty()) return houseKey;
+        return houseKey + "_apt_" + aptKey;
+    }
+
+    public static String parseHouseKey(String rawText) {
+        String fullKey = parseFullAddressKey(rawText);
+        if (fullKey.contains("_apt_")) {
+            return fullKey.substring(0, fullKey.indexOf("_apt_"));
+        }
+        return fullKey;
+    }
 
     @SerializedName("street")
     private String street;
@@ -141,6 +219,18 @@ public class GoogleAddress {
         return cachedStreetHouseKey;
     }
 
+    public static String getFullAddressKey(String streetHouseKey, String apartment) {
+        if (streetHouseKey == null || streetHouseKey.isEmpty()) return "";
+        if (apartment == null || apartment.trim().isEmpty()) return streetHouseKey;
+        String cleanApt = apartment.trim().toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+        if (cleanApt.isEmpty()) return streetHouseKey;
+        return streetHouseKey + "_apt_" + cleanApt;
+    }
+
+    public String getFullAddressKey() {
+        return getFullAddressKey(getStreetHouseKey(), getApartment());
+    }
+
     /** Returns the apartment number when present in the source row. */
     public String getApartment() {
         if (cachedApartment != null) return cachedApartment;
@@ -163,6 +253,22 @@ public class GoogleAddress {
         Matcher dashMatcher = APT_DASH_PATTERN.matcher(normalized);
         if (dashMatcher.find()) {
             String apt = dashMatcher.group(1);
+            cachedApartment = apt != null ? apt.trim() : "";
+            return cachedApartment;
+        }
+
+        // 3. Поиск формата с косой чертой ("кулешова 22/14")
+        Matcher slashMatcher = APT_SLASH_PATTERN.matcher(normalized);
+        if (slashMatcher.find()) {
+            String apt = slashMatcher.group(1);
+            cachedApartment = apt != null ? apt.trim() : "";
+            return cachedApartment;
+        }
+
+        // 4. Поиск формата через запятую ("кулешова 22, 14")
+        Matcher commaMatcher = APT_COMMA_PATTERN.matcher(normalized);
+        if (commaMatcher.find()) {
+            String apt = commaMatcher.group(1);
             cachedApartment = apt != null ? apt.trim() : "";
             return cachedApartment;
         }
