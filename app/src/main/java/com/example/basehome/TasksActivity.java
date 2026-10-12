@@ -114,7 +114,8 @@ public class TasksActivity extends AppCompatActivity {
                 .build();
         String url = SCRIPT_URL;
         try {
-            url = SCRIPT_URL + "?sheet=" + java.net.URLEncoder.encode("выезда", StandardCharsets.UTF_8.name());
+            url = SCRIPT_URL + "?city=" + java.net.URLEncoder.encode("выезда", StandardCharsets.UTF_8.name())
+                    + "&sheet=" + java.net.URLEncoder.encode("выезда", StandardCharsets.UTF_8.name());
         } catch (Exception ignored) {}
 
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
