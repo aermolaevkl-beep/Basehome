@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -42,15 +44,17 @@ import okhttp3.ResponseBody;
 public class TasksActivity extends AppCompatActivity {
 
     private LinearLayout llLoadingContainer;
-    private TextView tvLoadingMessage, tvEmptyTasks;
+    private TextView tvLoadingMessage, tvEmptyTasks, tvToolbarTitle;
     private RecyclerView rvTasks;
     private TaskAdapter taskAdapter;
+    private TaskDateAdapter dateAdapter;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private FirebaseAuth auth;
     private String currentUserName = "";
+    private boolean isShowingTasksForDate = false;
 
     private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBs8rnv_krynJVIXX3jDWF2RlWm4f0vS852NIGt23gxUMPZB0JACVcDWa4WCNhkjxO/exec";
 
@@ -65,15 +69,49 @@ public class TasksActivity extends AppCompatActivity {
         llLoadingContainer = findViewById(R.id.llLoadingContainerTasks);
         tvLoadingMessage = findViewById(R.id.tvLoadingMessageTasks);
         tvEmptyTasks = findViewById(R.id.tvEmptyTasks);
+        tvToolbarTitle = findViewById(R.id.tvToolbarTitleTasks);
         rvTasks = findViewById(R.id.rvTasks);
 
         rvTasks.setLayoutManager(new LinearLayoutManager(this));
+        
         taskAdapter = new TaskAdapter();
-        rvTasks.setAdapter(taskAdapter);
+        dateAdapter = new TaskDateAdapter(dateGroup -> {
+            // Show tasks for selected date
+            isShowingTasksForDate = true;
+            if (tvToolbarTitle != null) {
+                tvToolbarTitle.setText(dateGroup.getDate());
+            }
+            taskAdapter.updateTasks(dateGroup.getTasks());
+            rvTasks.setAdapter(taskAdapter);
+            tvEmptyTasks.setVisibility(dateGroup.getTasks().isEmpty() ? View.VISIBLE : View.GONE);
+            rvTasks.setVisibility(dateGroup.getTasks().isEmpty() ? View.GONE : View.VISIBLE);
+        });
 
-        btnBack.setOnClickListener(v -> finish());
+        rvTasks.setAdapter(dateAdapter);
+
+        btnBack.setOnClickListener(v -> handleBackAction());
 
         loadUserProfileAndTasks();
+    }
+
+    @Override
+    public void onBackPressed() {
+        handleBackAction();
+    }
+
+    private void handleBackAction() {
+        if (isShowingTasksForDate) {
+            // Return to date list view
+            isShowingTasksForDate = false;
+            if (tvToolbarTitle != null) {
+                tvToolbarTitle.setText("Мои задачи");
+            }
+            rvTasks.setAdapter(dateAdapter);
+            tvEmptyTasks.setVisibility(dateAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+            rvTasks.setVisibility(dateAdapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
+        } else {
+            finish();
+        }
     }
 
     private void loadUserProfileAndTasks() {
@@ -164,10 +202,13 @@ public class TasksActivity extends AppCompatActivity {
                             }
                         }
 
+                        List<TaskDateGroup> dateGroups = groupTasksByDate(matchedTasks);
+
                         mainHandler.post(() -> {
                             llLoadingContainer.setVisibility(View.GONE);
-                            taskAdapter.updateTasks(matchedTasks);
-                            if (matchedTasks.isEmpty()) {
+                            dateAdapter.updateDateGroups(dateGroups);
+                            rvTasks.setAdapter(dateAdapter);
+                            if (dateGroups.isEmpty()) {
                                 tvEmptyTasks.setVisibility(View.VISIBLE);
                                 rvTasks.setVisibility(View.GONE);
                             } else {
@@ -186,6 +227,25 @@ public class TasksActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private List<TaskDateGroup> groupTasksByDate(List<TaskItem> tasks) {
+        Map<String, List<TaskItem>> map = new LinkedHashMap<>();
+        for (TaskItem task : tasks) {
+            String dt = task.getDateTime();
+            String dateKey = (dt.length() >= 10) ? dt.substring(0, 10) : "Другие";
+            List<TaskItem> list = map.get(dateKey);
+            if (list == null) {
+                list = new ArrayList<>();
+                map.put(dateKey, list);
+            }
+            list.add(task);
+        }
+        List<TaskDateGroup> groups = new ArrayList<>();
+        for (Map.Entry<String, List<TaskItem>> entry : map.entrySet()) {
+            groups.add(new TaskDateGroup(entry.getKey(), entry.getValue()));
+        }
+        return groups;
     }
 
     private void recursiveParse(JsonReader reader, List<String> list) throws IOException {
