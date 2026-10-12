@@ -44,6 +44,7 @@ public class PhysicalAddressActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_physical_address);
+        SwipeBackHelper.attach(this);
 
         databaseReference = FirebaseDatabase.getInstance().getReference("addresses");
 

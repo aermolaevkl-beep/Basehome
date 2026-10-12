@@ -51,11 +51,13 @@ class ProfileActivity : AppCompatActivity() {
     
     private var isAdmin = false
     private val userNamesMap = mutableMapOf<String, String>()
+    private val adminUsersMap = mutableMapOf<String, Boolean>()
     private var currentUid: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
+        SwipeBackHelper.attach(this)
 
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
@@ -133,8 +135,10 @@ class ProfileActivity : AppCompatActivity() {
                 for (u in snapshot.children) {
                     val name = u.child("name").getValue(String::class.java)
                     val email = u.child("email").getValue(String::class.java)
+                    val isAdminUser = u.child("isAdmin").getValue(Boolean::class.java) ?: false
                     val uid = u.key ?: continue
                     userNamesMap[uid] = if (!name.isNullOrEmpty()) name else email?.substringBefore("@") ?: "Аноним"
+                    adminUsersMap[uid] = isAdminUser
                 }
                 onComplete()
             }
@@ -196,8 +200,12 @@ class ProfileActivity : AppCompatActivity() {
                     }
                 }
                 
-                val sortedRanks = countsMap.map { (uid, count) ->
-                    UserRank(uid, userNamesMap[uid] ?: "Аноним", count)
+                val sortedRanks = countsMap.mapNotNull { (uid, count) ->
+                    if (adminUsersMap[uid] == true) {
+                        null
+                    } else {
+                        UserRank(uid, userNamesMap[uid] ?: "Аноним", count)
+                    }
                 }.sortedByDescending { it.addressCount }
                 
                 UserRank.top3UserIds = sortedRanks.take(3).map { it.userId }

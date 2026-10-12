@@ -87,6 +87,18 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
         holder.tvHouse.setText(address.getHouse());
         
         holder.tvEntrance.setVisibility(View.GONE);
+        if (address.getTsh() != null && !address.getTsh().trim().isEmpty()) {
+            holder.tvTsh.setText("ТШ: " + address.getTsh());
+            holder.tvTsh.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvTsh.setVisibility(View.GONE);
+        }
+        if (address.getSid() != null && !address.getSid().trim().isEmpty()) {
+            holder.tvSid.setText("SID: " + address.getSid());
+            holder.tvSid.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvSid.setVisibility(View.GONE);
+        }
         holder.btnDelete.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
 
         holder.itemView.setOnClickListener(v -> {
@@ -104,7 +116,7 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvStreet, tvHouse, tvEntrance, tvCity;
+        TextView tvStreet, tvHouse, tvEntrance, tvCity, tvTsh, tvSid;
         ImageButton btnDelete;
 
         public ViewHolder(@NonNull View itemView) {
@@ -113,6 +125,8 @@ public class AddressAdapter extends RecyclerView.Adapter<AddressAdapter.ViewHold
             tvStreet = itemView.findViewById(R.id.tvStreet);
             tvHouse = itemView.findViewById(R.id.tvHouse);
             tvEntrance = itemView.findViewById(R.id.tvEntrance);
+            tvTsh = itemView.findViewById(R.id.tvTsh);
+            tvSid = itemView.findViewById(R.id.tvSid);
             btnDelete = itemView.findViewById(R.id.btnDeleteAddressItem);
         }
     }

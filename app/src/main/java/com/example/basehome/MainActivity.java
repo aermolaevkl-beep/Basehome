@@ -31,8 +31,10 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
     private FirebaseAuth auth;
@@ -195,24 +197,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void calculateGlobalRanks() {
-        FirebaseDatabase.getInstance().getReference("addresses").addListenerForSingleValueEvent(new ValueEventListener() {
+        FirebaseDatabase.getInstance().getReference("users").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Map<String, Integer> counts = new HashMap<>();
-                for (DataSnapshot item : snapshot.getChildren()) {
-                    String uid = item.child("userId").getValue(String.class);
-                    if (uid != null && !uid.isEmpty()) {
-                        counts.merge(uid, 1, Integer::sum);
+            public void onDataChange(@NonNull DataSnapshot usersSnapshot) {
+                Set<String> adminUids = new HashSet<>();
+                for (DataSnapshot u : usersSnapshot.getChildren()) {
+                    Boolean isAdmin = u.child("isAdmin").getValue(Boolean.class);
+                    if (Boolean.TRUE.equals(isAdmin)) {
+                        if (u.getKey() != null) adminUids.add(u.getKey());
                     }
                 }
-                List<Map.Entry<String, Integer>> list = new ArrayList<>(counts.entrySet());
-                list.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
-                
-                List<String> top3 = new ArrayList<>();
-                for (int i = 0; i < Math.min(3, list.size()); i++) {
-                    top3.add(list.get(i).getKey());
-                }
-                UserRank.Companion.setTop3UserIds(top3);
+
+                FirebaseDatabase.getInstance().getReference("addresses").addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Map<String, Integer> counts = new HashMap<>();
+                        for (DataSnapshot item : snapshot.getChildren()) {
+                            String uid = item.child("userId").getValue(String.class);
+                            if (uid != null && !uid.isEmpty() && !adminUids.contains(uid)) {
+                                counts.merge(uid, 1, Integer::sum);
+                            }
+                        }
+                        List<Map.Entry<String, Integer>> list = new ArrayList<>(counts.entrySet());
+                        list.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+                        
+                        List<String> top3 = new ArrayList<>();
+                        for (int i = 0; i < Math.min(3, list.size()); i++) {
+                            top3.add(list.get(i).getKey());
+                        }
+                        UserRank.Companion.setTop3UserIds(top3);
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {}
+                });
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}

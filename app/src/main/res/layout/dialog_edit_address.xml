@@ -40,6 +40,30 @@
         android:layout_height="wrap_content"
         android:hint="Номер дома"
         android:padding="14dp"
+        android:layout_marginBottom="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
+        android:inputType="textCapSentences" />
+
+    <EditText
+        android:id="@+id/etTshEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="ТШ"
+        android:padding="14dp"
+        android:layout_marginBottom="12dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textColorHint="?android:attr/textColorSecondary"
+        android:background="@drawable/bg_input_field"
+        android:inputType="textCapSentences" />
+
+    <EditText
+        android:id="@+id/etSidEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="SID"
+        android:padding="14dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textColorHint="?android:attr/textColorSecondary"
         android:background="@drawable/bg_input_field"

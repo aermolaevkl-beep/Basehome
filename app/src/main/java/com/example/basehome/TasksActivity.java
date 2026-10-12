@@ -69,6 +69,16 @@ public class TasksActivity extends AppCompatActivity {
     private Call activeTasksCall;
     private Bundle savedInstanceStateRef;
 
+    private static List<TaskDateGroup> cachedDateGroups = null;
+    private static Map<String, ArrayList<String>> cachedAddressHistoryMap = null;
+    private static String cachedUserNameSession = "";
+
+    public static void clearSessionMemoryCache() {
+        cachedDateGroups = null;
+        cachedAddressHistoryMap = null;
+        cachedUserNameSession = "";
+    }
+
     private static final String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBs8rnv_krynJVIXX3jDWF2RlWm4f0vS852NIGt23gxUMPZB0JACVcDWa4WCNhkjxO/exec";
 
     @Override
@@ -76,6 +86,7 @@ public class TasksActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         savedInstanceStateRef = savedInstanceState;
         setContentView(R.layout.activity_tasks);
+        SwipeBackHelper.attach(this);
 
         auth = FirebaseAuth.getInstance();
 
@@ -122,6 +133,7 @@ public class TasksActivity extends AppCompatActivity {
                 Toast.makeText(this, "Не удалось определить пользователя", Toast.LENGTH_SHORT).show();
                 return;
             }
+            clearSessionMemoryCache();
             manualRefreshInProgress = true;
             btnRefreshTasks.setEnabled(false);
             tvLoadingMessage.setText("Обновление задач...");
@@ -141,16 +153,58 @@ public class TasksActivity extends AppCompatActivity {
 
         currentUserName = getSharedPreferences("user_prefs", MODE_PRIVATE).getString("saved_user_name", "");
         hasDisplayedTasks = false;
-        String cachedContent = getSharedPreferences("tasks_cache", MODE_PRIVATE)
-                .getString("raw_rows_json", null);
-        hasCachedTasks = cachedContent != null && !cachedContent.isEmpty();
 
-        if (hasCachedTasks) {
-            loadCachedTasksIfAvailable();
+        if (cachedDateGroups != null && !cachedDateGroups.isEmpty() && cachedUserNameSession.equals(currentUserName)) {
+            // Instant session memory cache display (0 wait, 0 white screen, 0 loading)
+            hasDisplayedTasks = true;
+            llLoadingContainer.setVisibility(View.GONE);
+            taskAdapter.setAddressHistoryMap(cachedAddressHistoryMap);
+            dateAdapter.updateDateGroups(cachedDateGroups);
+
+            if (isShowingTasksForDate && tvToolbarTitle != null) {
+                String currentTitle = tvToolbarTitle.getText().toString();
+                TaskDateGroup targetGroup = null;
+                for (TaskDateGroup group : cachedDateGroups) {
+                    if (group.getDate().equals(currentTitle)) {
+                        targetGroup = group;
+                        break;
+                    }
+                }
+                if (targetGroup != null) {
+                    taskAdapter.updateTasks(targetGroup.getTasks());
+                    rvTasks.setAdapter(taskAdapter);
+                    tvEmptyTasks.setVisibility(targetGroup.getTasks().isEmpty() ? View.VISIBLE : View.GONE);
+                    rvTasks.setVisibility(targetGroup.getTasks().isEmpty() ? View.GONE : View.VISIBLE);
+                } else {
+                    rvTasks.setAdapter(dateAdapter);
+                    tvEmptyTasks.setVisibility(cachedDateGroups.isEmpty() ? View.VISIBLE : View.GONE);
+                    rvTasks.setVisibility(cachedDateGroups.isEmpty() ? View.GONE : View.VISIBLE);
+                }
+            } else {
+                rvTasks.setAdapter(dateAdapter);
+                if (cachedDateGroups.isEmpty()) {
+                    tvEmptyTasks.setText("Нет задач для вашего профиля");
+                    tvEmptyTasks.setVisibility(View.VISIBLE);
+                    rvTasks.setVisibility(View.GONE);
+                } else {
+                    tvEmptyTasks.setVisibility(View.GONE);
+                    rvTasks.setVisibility(View.VISIBLE);
+                }
+            }
         } else {
-            llLoadingContainer.setVisibility(View.VISIBLE);
-            tvLoadingMessage.setText("Загрузка задач...");
-            loadUserProfileAndTasks();
+            String cachedContent = getSharedPreferences("tasks_cache", MODE_PRIVATE)
+                    .getString("raw_rows_json", null);
+            hasCachedTasks = cachedContent != null && !cachedContent.isEmpty();
+
+            if (hasCachedTasks) {
+                llLoadingContainer.setVisibility(View.VISIBLE);
+                tvLoadingMessage.setText("Загрузка сохранённых задач...");
+                loadCachedTasksIfAvailable();
+            } else {
+                llLoadingContainer.setVisibility(View.VISIBLE);
+                tvLoadingMessage.setText("Загрузка задач...");
+                loadUserProfileAndTasks();
+            }
         }
     }
 
@@ -459,6 +513,12 @@ public class TasksActivity extends AppCompatActivity {
     private void applyProcessedTasks(List<TaskItem> matchedTasks, List<TaskDateGroup> dateGroups, Map<String, ArrayList<String>> addressHistoryMap) {
         hasDisplayedTasks = true;
         fetchInProgress.set(false);
+
+        // Save to session memory cache
+        cachedDateGroups = dateGroups;
+        cachedAddressHistoryMap = addressHistoryMap;
+        cachedUserNameSession = currentUserName;
+
         if (manualRefreshInProgress) {
             manualRefreshInProgress = false;
             btnRefreshTasks.setEnabled(true);

@@ -16,6 +16,8 @@ class AddressDetailActivity : AppCompatActivity() {
 
     private lateinit var tvStreet: TextView
     private lateinit var tvHouse: TextView
+    private lateinit var tvTshDetail: TextView
+    private lateinit var tvSidDetail: TextView
     private lateinit var tvCityDetail: TextView
     private lateinit var tvAddedBy: TextView
     private lateinit var rvEntrances: RecyclerView
@@ -47,6 +49,7 @@ class AddressDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_address_detail)
+        SwipeBackHelper.attach(this)
 
         auth = FirebaseAuth.getInstance()
         databaseReference = FirebaseDatabase.getInstance().reference.child("addresses")
@@ -65,6 +68,8 @@ class AddressDetailActivity : AppCompatActivity() {
         tvCityDetail = findViewById(R.id.tvCityDetail)
         tvStreet = findViewById(R.id.tvStreet)
         tvHouse = findViewById(R.id.tvHouse)
+        tvTshDetail = findViewById(R.id.tvTshDetail)
+        tvSidDetail = findViewById(R.id.tvSidDetail)
         tvAddedBy = findViewById(R.id.tvAddedBy)
         rvEntrances = findViewById(R.id.rvEntrances)
         rvComments = findViewById(R.id.rvComments)
@@ -128,6 +133,18 @@ class AddressDetailActivity : AppCompatActivity() {
                     tvCityDetail.text = address.city ?: "Могилев"
                     tvStreet.text = address.street
                     tvHouse.text = getString(R.string.house_label, address.house)
+                    if (!address.tsh.isNullOrEmpty()) {
+                        tvTshDetail.text = "ТШ: ${address.tsh}"
+                        tvTshDetail.visibility = View.VISIBLE
+                    } else {
+                        tvTshDetail.visibility = View.GONE
+                    }
+                    if (!address.sid.isNullOrEmpty()) {
+                        tvSidDetail.text = "SID: ${address.sid}"
+                        tvSidDetail.visibility = View.VISIBLE
+                    } else {
+                        tvSidDetail.visibility = View.GONE
+                    }
                     
                     val nameWithRank = RankHelper.formatNameWithRank(address.userId, address.userName)
                     tvAddedBy.text = TextUtils.concat("Создал: ", nameWithRank)
@@ -251,6 +268,8 @@ class AddressDetailActivity : AppCompatActivity() {
         val spinnerCity = view.findViewById<Spinner>(R.id.spinnerCityEdit)
         val etStreet = view.findViewById<EditText>(R.id.etStreetEdit)
         val etHouse = view.findViewById<EditText>(R.id.etHouseEdit)
+        val etTsh = view.findViewById<EditText>(R.id.etTshEdit)
+        val etSid = view.findViewById<EditText>(R.id.etSidEdit)
 
         CityManager.loadCitiesFromFirebase { citiesList ->
             if (isFinishing) return@loadCitiesFromFirebase
@@ -264,6 +283,8 @@ class AddressDetailActivity : AppCompatActivity() {
         
         etStreet.setText(address.street)
         etHouse.setText(address.house)
+        etTsh.setText(address.tsh ?: "")
+        etSid.setText(address.sid ?: "")
 
         AlertDialog.Builder(this)
             .setTitle("Редактирование адреса")
@@ -272,12 +293,16 @@ class AddressDetailActivity : AppCompatActivity() {
                 val newStreet = capitalize(etStreet.text.toString().trim())
                 val newHouse = etHouse.text.toString().trim()
                 val newCity = spinnerCity.selectedItem.toString()
+                val newTsh = etTsh.text.toString().trim()
+                val newSid = etSid.text.toString().trim()
 
                 if (newStreet.isNotEmpty() && newHouse.isNotEmpty()) {
                     val updates = mapOf(
                         "street" to newStreet,
                         "house" to newHouse,
-                        "city" to newCity
+                        "city" to newCity,
+                        "tsh" to newTsh,
+                        "sid" to newSid
                     )
                     databaseReference.child(addressId!!).updateChildren(updates)
                         .addOnSuccessListener {

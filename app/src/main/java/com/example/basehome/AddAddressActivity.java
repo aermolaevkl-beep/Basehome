@@ -31,7 +31,7 @@ import java.util.Locale;
 public class AddAddressActivity extends AppCompatActivity {
 
     private AutoCompleteTextView etStreet;
-    private EditText etHouse;
+    private EditText etHouse, etTsh, etSid;
     private Spinner spinnerCity;
     private DatabaseReference databaseReference;
     private ValueEventListener suggestionsListener;
@@ -46,12 +46,15 @@ public class AddAddressActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_address);
+        SwipeBackHelper.attach(this);
 
         databaseReference = FirebaseDatabase.getInstance().getReference("addresses");
         auth = FirebaseAuth.getInstance();
 
         etStreet = findViewById(R.id.etStreet);
         etHouse = findViewById(R.id.etHouse);
+        etTsh = findViewById(R.id.etTsh);
+        etSid = findViewById(R.id.etSid);
         spinnerCity = findViewById(R.id.spinnerCity);
         btnSave = findViewById(R.id.btnSave);
         ImageButton btnBack = findViewById(R.id.btnBackAddAddress);
@@ -189,6 +192,8 @@ public class AddAddressActivity extends AppCompatActivity {
     private void saveAddress() {
         String streetInput = etStreet.getText().toString().trim();
         String houseInput = etHouse.getText().toString().trim();
+        String tshInput = etTsh.getText().toString().trim();
+        String sidInput = etSid.getText().toString().trim();
         
         if (streetInput.isEmpty() || houseInput.isEmpty()) {
             Toast.makeText(this, "Заполните улицу и номер дома", Toast.LENGTH_SHORT).show();
@@ -216,7 +221,7 @@ public class AddAddressActivity extends AppCompatActivity {
                 String userName = snapshot.getValue(String.class);
                 if (userName == null) userName = user.getEmail();
                 
-                Address address = new Address(street, houseInput, city, user.getUid(), userName);
+                Address address = new Address(street, houseInput, city, user.getUid(), userName, tshInput, sidInput);
                 if (id != null) {
                     databaseReference.child(id).setValue(address)
                             .addOnSuccessListener(aVoid -> {

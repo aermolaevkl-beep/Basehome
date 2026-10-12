@@ -92,6 +92,26 @@
                             android:layout_marginTop="2dp" />
 
                         <TextView
+                            android:id="@+id/tvTshDetail"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorPrimary"
+                            android:layout_marginTop="4dp"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tvSidDetail"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorPrimary"
+                            android:layout_marginTop="2dp"
+                            android:visibility="gone" />
+
+                        <TextView
                             android:id="@+id/tvAddedBy"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

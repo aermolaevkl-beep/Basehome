@@ -9,6 +9,8 @@ public class Address {
     private String city;
     private String userId;
     private String userName;
+    private String tsh;
+    private String sid;
 
     public Address() {}
 
@@ -28,6 +30,25 @@ public class Address {
         this.userName = userName;
     }
 
+    public Address(String street, String house, String city, String userId, String userName, String tsh) {
+        this.street = street;
+        this.house = house;
+        this.city = city;
+        this.userId = userId;
+        this.userName = userName;
+        this.tsh = tsh;
+    }
+
+    public Address(String street, String house, String city, String userId, String userName, String tsh, String sid) {
+        this.street = street;
+        this.house = house;
+        this.city = city;
+        this.userId = userId;
+        this.userName = userName;
+        this.tsh = tsh;
+        this.sid = sid;
+    }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getStreet() { return street; }
@@ -40,6 +61,10 @@ public class Address {
     public void setUserId(String userId) { this.userId = userId; }
     public String getUserName() { return userName; }
     public void setUserName(String userName) { this.userName = userName; }
+    public String getTsh() { return tsh; }
+    public void setTsh(String tsh) { this.tsh = tsh; }
+    public String getSid() { return sid; }
+    public void setSid(String sid) { this.sid = sid; }
 
     @Override
     public boolean equals(Object o) {
