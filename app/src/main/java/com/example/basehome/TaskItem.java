@@ -45,7 +45,7 @@ public class TaskItem {
 
             for (int i = 2; i < parts.size(); i++) {
                 String p = parts.get(i);
-                if (accountIdx == -1 && p.matches("\\d{10,14}")) {
+                if (accountIdx == -1 && p.matches("\\d{6,14}")) {
                     accountIdx = i;
                 } else if (phoneIdx == -1 && (p.matches("375\\d{9}") || (p.matches("\\d{9,12}") && i > 3))) {
                     phoneIdx = i;
