@@ -187,7 +187,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         // Address History
         String rawAddress = item.getAddress();
         String fullKey = GoogleAddress.parseFullAddressKey(rawAddress);
-        String houseKey = GoogleAddress.parseHouseKey(rawAddress);
 
         String taskCityKey = TaskItem.normalizeExportCity(item.getCity());
         ArrayList<String> pastVisits = taskCityKey.isEmpty()
@@ -195,26 +194,18 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 : addressHistoryMap.get(TaskItem.cityAddressKey(taskCityKey, fullKey));
         boolean isApartmentSpecific = pastVisits != null && !pastVisits.isEmpty();
 
-        if (!isApartmentSpecific && houseKey != null && !houseKey.isEmpty()) {
-            pastVisits = taskCityKey.isEmpty()
-                    ? addressHistoryMap.get(houseKey)
-                    : addressHistoryMap.get(TaskItem.cityAddressKey(taskCityKey, houseKey));
-        }
-
-        if (pastVisits != null && !pastVisits.isEmpty()) {
+        // Показываем историю только для этой квартиры, не историю всего дома.
+        if (isApartmentSpecific) {
             holder.btnHistory.setVisibility(View.VISIBLE);
             holder.btnHistory.setText("История выездов (" + pastVisits.size() + ")");
             final ArrayList<String> visitsToPass = pastVisits;
-            final boolean isAptMatch = isApartmentSpecific;
             holder.btnHistory.setOnClickListener(v -> {
                 Intent intent = new Intent(context, GoogleAddressDetailActivity.class);
                 GoogleAddress ga = new GoogleAddress(rawAddress);
                 intent.putExtra(GoogleAddressDetailActivity.EXTRA_ADDRESS, ga.getStreetHouse());
-                if (isAptMatch) {
-                    String apt = ga.getApartment();
-                    if (apt != null && !apt.isEmpty()) {
-                        intent.putExtra(GoogleAddressDetailActivity.EXTRA_APARTMENT, apt);
-                    }
+                String apt = ga.getApartment();
+                if (apt != null && !apt.isEmpty()) {
+                    intent.putExtra(GoogleAddressDetailActivity.EXTRA_APARTMENT, apt);
                 }
                 intent.putStringArrayListExtra(GoogleAddressDetailActivity.EXTRA_VISITS, visitsToPass);
                 context.startActivity(intent);

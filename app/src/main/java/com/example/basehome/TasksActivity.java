@@ -994,7 +994,8 @@ public class TasksActivity extends AppCompatActivity {
         for (Map.Entry<String, List<TaskItem>> entry : map.entrySet()) {
             groups.add(new TaskDateGroup(entry.getKey(), entry.getValue()));
         }
-        groups.sort((g1, g2) -> g1.getDate().compareTo(g2.getDate()));
+        // Show the latest task dates first, then continue backward in time.
+        groups.sort((g1, g2) -> g2.getDate().compareTo(g1.getDate()));
         return groups;
     }
 

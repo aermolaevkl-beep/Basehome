@@ -27,6 +27,7 @@ public class GoogleAddressDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_google_address_detail);
+        SwipeBackHelper.attach(this);
 
         String address = getIntent().getStringExtra(EXTRA_ADDRESS);
         String selectedApartment = getIntent().getStringExtra(EXTRA_APARTMENT);

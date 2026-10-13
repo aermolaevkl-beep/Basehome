@@ -19,7 +19,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var tvUserRating: TextView
     private lateinit var tvRankProgress: TextView
     private lateinit var tvProfileCity: TextView
-    private lateinit var tvContributionSummary: TextView
+    private lateinit var tvLoginStreak: TextView
     private lateinit var tvProfileEntranceCount: TextView
     private lateinit var rvRecentActivity: RecyclerView
     private lateinit var tvAddressesCount: TextView
@@ -52,6 +52,8 @@ class ProfileActivity : AppCompatActivity() {
     private var isAdmin = false
     private val userNamesMap = mutableMapOf<String, String>()
     private val adminUsersMap = mutableMapOf<String, Boolean>()
+    private val addressesById = mutableMapOf<String, Address>()
+    private val businessAddressesById = mutableMapOf<String, BusinessAddress>()
     private var currentUid: String = ""
     private var selectedCity: String = CityManager.ALL_CITIES
     private var currentAddressCount = 0
@@ -77,7 +79,7 @@ class ProfileActivity : AppCompatActivity() {
         tvUserRating = findViewById(R.id.tvUserRating)
         tvRankProgress = findViewById(R.id.tvRankProgress)
         tvProfileCity = findViewById(R.id.tvProfileCity)
-        tvContributionSummary = findViewById(R.id.tvContributionSummary)
+        tvLoginStreak = findViewById(R.id.tvLoginStreak)
         tvProfileEntranceCount = findViewById(R.id.tvProfileEntranceCount)
         rvRecentActivity = findViewById(R.id.rvRecentActivity)
         tvAddressesCount = findViewById(R.id.tvAddressesCount)
@@ -112,6 +114,8 @@ class ProfileActivity : AppCompatActivity() {
         database.getReference("users").child(currentUid).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 isAdmin = snapshot.child("isAdmin").getValue(Boolean::class.java) ?: false
+                val loginStreak = snapshot.child("loginStreakCount").getValue(Long::class.java) ?: 0L
+                tvLoginStreak.text = getString(R.string.profile_login_streak, loginStreak)
                 updateUserNameDisplay(snapshot.child("name").getValue(String::class.java))
                 selectedCity = snapshot.child("selectedCity").getValue(String::class.java)
                     ?.takeIf { it.isNotBlank() } ?: CityManager.ALL_CITIES
@@ -163,7 +167,11 @@ class ProfileActivity : AppCompatActivity() {
         rvGlobalRanking.layoutManager = LinearLayoutManager(this)
         rvGlobalRanking.adapter = rankingAdapter
 
-        recentActivityAdapter = RecentActivityAdapter(emptyList())
+        recentActivityAdapter = RecentActivityAdapter(emptyList()) { item ->
+            val id = item.targetId ?: return@RecentActivityAdapter
+            val activity = if (item.isBusiness) BusinessAddressDetailActivity::class.java else AddressDetailActivity::class.java
+            startActivity(Intent(this, activity).putExtra("addressId", id))
+        }
         rvRecentActivity.layoutManager = LinearLayoutManager(this)
         rvRecentActivity.adapter = recentActivityAdapter
 
@@ -184,18 +192,24 @@ class ProfileActivity : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val counts = mutableMapOf<String, Int>()
                 userAddressesFull.clear()
+                addressesById.clear()
                 val activities = mutableListOf<ActivityItem>()
                 for (data in snapshot.children) {
                     val address = data.getValue(Address::class.java) ?: continue
                     address.id = data.key
+                    address.id?.let { addressesById[it] = address }
                     val uid = address.userId.orEmpty()
                     if (uid.isNotEmpty()) {
                         counts[uid] = (counts[uid] ?: 0) + 1
                         if (uid == currentUid) {
                             userAddressesFull.add(address)
-                            val place = listOfNotNull(address.city, address.street, address.house?.let { "д. $it" })
-                                .filter { it.isNotBlank() }.joinToString(", ")
-                            activities.add(ActivityItem(ActivityType.ADDRESS, getString(R.string.profile_activity_address, place), 0L))
+                            val place = formatAddress(address.city, address.street, address.house)
+                            activities.add(ActivityItem(
+                                ActivityType.ADDRESS,
+                                getString(R.string.profile_activity_address, place),
+                                0L,
+                                address.id
+                            ))
                         }
                     }
                 }
@@ -208,9 +222,39 @@ class ProfileActivity : AppCompatActivity() {
                 userAddressesFull.reverse()
                 updateVisibleAddresses()
                 rankingAdapter.updateList(sorted.take(10))
-                loadEntrancesAndComments(activities)
+                loadBusinessAddressesAndContinue(activities)
             }
             override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    private fun loadBusinessAddressesAndContinue(activities: MutableList<ActivityItem>) {
+        database.getReference("business_addresses").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                businessAddressesById.clear()
+                for (node in snapshot.children) {
+                    val address = node.getValue(BusinessAddress::class.java) ?: continue
+                    val id = node.key ?: continue
+                    address.id = id
+                    businessAddressesById[id] = address
+                    if (address.userId == currentUid) {
+                        val place = formatAddress(address.city, address.street, address.house)
+                        activities.add(ActivityItem(
+                            ActivityType.BUSINESS_ADDRESS,
+                            getString(R.string.profile_activity_business_address, address.centerName.orEmpty()),
+                            0L,
+                            id,
+                            isBusiness = true,
+                            address = place
+                        ))
+                    }
+                }
+                loadEntrancesAndComments(activities)
+            }
+            override fun onCancelled(error: DatabaseError) {
+                businessAddressesById.clear()
+                loadEntrancesAndComments(activities)
+            }
         })
     }
 
@@ -224,12 +268,14 @@ class ProfileActivity : AppCompatActivity() {
                         if (entrance.lastEditorId == currentUid) {
                             currentEntranceCount++
                             val address = findAddress(addressNode.key)
-                            val city = address?.city.orEmpty()
-                            val street = address?.street.orEmpty()
-                            val house = address?.house?.let { "д. $it" }.orEmpty()
-                            val place = listOf(city, street, house).filter { it.isNotBlank() }.joinToString(", ")
-                            val detail = if (place.isBlank()) entrance.number else "${entrance.number}, $place"
-                            activities.add(ActivityItem(ActivityType.ENTRANCE, getString(R.string.profile_activity_entrance, detail), entrance.lastEditTimestamp))
+                            val place = address?.let { formatAddress(it.city, it.street, it.house) }.orEmpty()
+                            activities.add(ActivityItem(
+                                ActivityType.ENTRANCE,
+                                getString(R.string.profile_activity_entrance, entrance.number),
+                                entrance.lastEditTimestamp,
+                                addressNode.key,
+                                address = place
+                            ))
                         }
                     }
                 }
@@ -239,7 +285,12 @@ class ProfileActivity : AppCompatActivity() {
         })
     }
 
-    private fun findAddress(id: String?): Address? = userAddressesFull.firstOrNull { it.id == id }
+    private fun findAddress(id: String?): Address? = id?.let { addressesById[it] }
+
+    private fun formatAddress(city: String?, street: String?, house: String?): String =
+        listOfNotNull(city, street, house?.takeIf { it.isNotBlank() }?.let { "д. $it" })
+            .filter { it.isNotBlank() }
+            .joinToString(", ")
 
     private fun loadCommentsAndRender(activities: MutableList<ActivityItem>) {
         database.getReference("comments").addValueEventListener(object : ValueEventListener {
@@ -253,7 +304,19 @@ class ProfileActivity : AppCompatActivity() {
                         if (comment.authorId == currentUid) {
                             currentCommentCount++
                             val text = comment.text.orEmpty().replace('\n', ' ').take(90)
-                            activities.add(ActivityItem(ActivityType.COMMENT, getString(R.string.profile_activity_comment, text), comment.timestamp))
+                            val addressId = addressNode.key
+                            val physicalAddress = addressId?.let { addressesById[it] }
+                            val businessAddress = addressId?.let { businessAddressesById[it] }
+                            val place = physicalAddress?.let { formatAddress(it.city, it.street, it.house) }
+                                ?: businessAddress?.let { formatAddress(it.city, it.street, it.house) }.orEmpty()
+                            activities.add(ActivityItem(
+                                ActivityType.COMMENT,
+                                getString(R.string.profile_activity_comment, text),
+                                comment.timestamp,
+                                addressId,
+                                isBusiness = businessAddress != null,
+                                address = place
+                            ))
                             userCommentsFull.add(comment)
                         } else if (isAdmin) {
                             userCommentsFull.add(comment)
@@ -278,9 +341,7 @@ class ProfileActivity : AppCompatActivity() {
         tvRankProgress.text = ContributionRank.progress(this, points)
         tvAddressesCount.text = currentAddressCount.toString()
         tvCommentsCount.text = currentCommentCount.toString()
-        tvProfileEntranceCount.text = getString(R.string.profile_activity_entrances_label, currentEntranceCount)
-        tvContributionSummary.text = getString(R.string.profile_contribution_summary,
-            currentAddressCount, currentEntranceCount, currentCommentCount)
+        tvProfileEntranceCount.text = currentEntranceCount.toString()
     }
 
     private fun renderRecentActivity(activities: List<ActivityItem>) {

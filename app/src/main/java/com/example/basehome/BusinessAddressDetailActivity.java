@@ -61,6 +61,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_business_address_detail);
+        SwipeBackHelper.attach(this);
 
         addressId = getIntent().getStringExtra("addressId");
         if (addressId == null) {

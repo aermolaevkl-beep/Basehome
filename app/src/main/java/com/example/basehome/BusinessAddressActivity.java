@@ -44,6 +44,7 @@ public class BusinessAddressActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_business_address);
+        SwipeBackHelper.attach(this);
 
         databaseReference = FirebaseDatabase.getInstance().getReference("business_addresses");
 

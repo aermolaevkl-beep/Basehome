@@ -53,6 +53,7 @@ class UsersActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_users)
+        SwipeBackHelper.attach(this)
         database = FirebaseDatabase.getInstance()
         rvUsers = findViewById(R.id.rvUsersList)
         findViewById<ImageButton>(R.id.btnBackUsers).setOnClickListener { finish() }

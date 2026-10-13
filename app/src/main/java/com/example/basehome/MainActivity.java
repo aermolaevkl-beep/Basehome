@@ -407,7 +407,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (auth.getCurrentUser() != null && userStatusRef != null) {
+        FirebaseUser signedInUser = auth.getCurrentUser();
+        if (signedInUser != null) {
+            LoginStreakTracker.INSTANCE.recordDailyLogin(
+                    FirebaseDatabase.getInstance().getReference("users").child(signedInUser.getUid()));
+        }
+        if (signedInUser != null && userStatusRef != null) {
             userStatusRef.child("isOnline").setValue(true);
         }
         startPingMeasurement();

@@ -66,6 +66,7 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_google_database);
+        SwipeBackHelper.attach(this);
 
         db = AppDatabase.getInstance(this);
         String extraCity = getIntent().getStringExtra("city");
