@@ -256,7 +256,52 @@ public class GoogleDatabaseActivity extends AppCompatActivity {
     private String getFirebaseCityKey(String city) {
         String normalized = city == null ? "" : city.trim().toLowerCase(Locale.ROOT);
         if (normalized.equals("могилев") || normalized.equals("могилёв")) return "mogilev";
-        return normalized.replace('ё', 'е').replaceAll("[^\\p{L}\\p{N}]+", "_");
+        if (normalized.equals("бобруйск")) return "bobruisk";
+        if (normalized.equals("горки")) return "gorki";
+        if (normalized.equals("орша")) return "orsha";
+
+        StringBuilder sb = new StringBuilder();
+        for (char c : normalized.replace('ё', 'е').toCharArray()) {
+            switch (c) {
+                case 'а': sb.append("a"); break;
+                case 'б': sb.append("b"); break;
+                case 'в': sb.append("v"); break;
+                case 'г': sb.append("g"); break;
+                case 'д': sb.append("d"); break;
+                case 'е': case 'э': sb.append("e"); break;
+                case 'ж': sb.append("zh"); break;
+                case 'з': sb.append("z"); break;
+                case 'и': case 'й': sb.append("i"); break;
+                case 'к': sb.append("k"); break;
+                case 'л': sb.append("l"); break;
+                case 'м': sb.append("m"); break;
+                case 'н': sb.append("n"); break;
+                case 'о': sb.append("o"); break;
+                case 'п': sb.append("p"); break;
+                case 'р': sb.append("r"); break;
+                case 'с': sb.append("s"); break;
+                case 'т': sb.append("t"); break;
+                case 'у': sb.append("u"); break;
+                case 'ф': sb.append("f"); break;
+                case 'х': sb.append("kh"); break;
+                case 'ц': sb.append("ts"); break;
+                case 'ч': sb.append("ch"); break;
+                case 'ш': sb.append("sh"); break;
+                case 'щ': sb.append("shch"); break;
+                case 'ы': sb.append("y"); break;
+                case 'ю': sb.append("yu"); break;
+                case 'я': sb.append("ya"); break;
+                case 'ь': case 'ъ': break;
+                default:
+                    if (Character.isLetterOrDigit(c)) {
+                        sb.append(c);
+                    } else {
+                        sb.append("_");
+                    }
+                    break;
+            }
+        }
+        return sb.toString().replaceAll("_+", "_").replaceAll("^_+|_+$", "");
     }
 
     private String getChildText(DataSnapshot snapshot, String childName) {

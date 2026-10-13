@@ -10,10 +10,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -127,6 +130,48 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
         findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
+        
+        View llCitySelector = findViewById(R.id.llCitySelector);
+        if (llCitySelector != null) {
+            llCitySelector.setOnClickListener(v -> showMainCityPicker());
+        }
+    }
+
+    private void showMainCityPicker() {
+        if (currentUser == null) return;
+        FirebaseDatabase.getInstance().getReference("users").child(currentUser.getUid()).child("isAdmin")
+                .get().addOnSuccessListener(snapshot -> {
+                    if (isFinishing()) return;
+                    Boolean isAdmin = snapshot.getValue(Boolean.class);
+                    if (Boolean.TRUE.equals(isAdmin)) {
+                        CityManager.loadCitiesFromFirebase(cities -> {
+                            if (isFinishing()) return;
+                            runOnUiThread(() -> {
+                                List<String> options = new ArrayList<>(cities);
+                                if (!options.contains(CityManager.ALL_CITIES)) {
+                                    options.add(CityManager.ALL_CITIES);
+                                }
+                                androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                                        .setTitle(R.string.choose_city)
+                                        .create();
+                                RecyclerView list = new RecyclerView(this);
+                                list.setLayoutManager(new LinearLayoutManager(this));
+                                String currentSelected = activeCity.isEmpty() ? CityManager.ALL_CITIES : activeCity;
+                                list.setAdapter(new CityPickerAdapter(options, currentSelected, city -> {
+                                    CityManager.setSelectedCity(this, city);
+                                    activeCity = CityManager.ALL_CITIES.equalsIgnoreCase(city) ? "" : city;
+                                    updateCityCardText();
+                                    dialog.dismiss();
+                                    Toast.makeText(this, "Город изменен на: " + city, Toast.LENGTH_SHORT).show();
+                                }));
+                                dialog.setView(list);
+                                dialog.show();
+                            });
+                        });
+                    } else {
+                        Toast.makeText(this, "Смена города с главного меню доступна только администраторам", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void setupCitySelector() {
