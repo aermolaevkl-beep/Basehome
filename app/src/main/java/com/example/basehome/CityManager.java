@@ -72,13 +72,19 @@ public class CityManager {
                     prefs.edit().putString(KEY_SELECTED_CITY, firebaseCity).apply();
                     if (listener != null) listener.onCityLoaded(firebaseCity);
                 } else {
-                    if (listener != null) listener.onCityLoaded(getSelectedCity(context));
+                    // City assignment belongs to the Firebase user profile; don't reuse a
+                    // previous account's device-local selection when this profile has none.
+                    SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+                    prefs.edit().putString(KEY_SELECTED_CITY, ALL_CITIES).apply();
+                    if (listener != null) listener.onCityLoaded(ALL_CITIES);
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                if (listener != null) listener.onCityLoaded(getSelectedCity(context));
+                SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+                prefs.edit().putString(KEY_SELECTED_CITY, ALL_CITIES).apply();
+                if (listener != null) listener.onCityLoaded(ALL_CITIES);
             }
         });
     }

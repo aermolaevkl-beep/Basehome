@@ -16,144 +16,122 @@
         android:paddingEnd="20dp"
         android:paddingBottom="24dp">
 
-    <!-- Header Section with Status, Profile and Logout -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="18dp">
-
-        <!-- Connection Indicator -->
-        <LinearLayout
-            android:id="@+id/llConnectionStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="4dp">
-
-            <View
-                android:id="@+id/vConnectionIndicator"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:background="@drawable/ic_connection_dot" />
-
-            <TextView
-                android:id="@+id/tvConnectionStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="@string/connection_checking"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_toEndOf="@id/llConnectionStatus"
-            android:layout_alignParentEnd="true"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnProfile"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:layout_marginEnd="10dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minHeight="44dp"
-                android:text="@string/profile"
-                android:textAllCaps="false"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                app:backgroundTint="?attr/colorPrimary"
-                app:cornerRadius="22dp"
-                app:elevation="2dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                app:cardBackgroundColor="?attr/colorError"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="3dp">
-
-                <ImageButton
-                    android:id="@+id/btnLogout"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:src="@android:drawable/ic_lock_power_off"
-                    android:background="?android:attr/selectableItemBackground"
-                    app:tint="@android:color/white"
-                    android:scaleType="centerInside"
-                    android:contentDescription="@string/logout" />
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
-    </RelativeLayout>
-
-
-    <!-- City Selection Card -->
+    <!-- Compact header groups connection, profile and sign-out together -->
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardCitySelector"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="22dp"
-        app:cardCornerRadius="22dp"
-        app:cardElevation="2dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="?attr/colorOutlineVariant"
+        android:layout_marginBottom="14dp"
         app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground">
+        app:cardCornerRadius="18dp"
+        app:cardElevation="0dp"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="14dp">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_dialog_map"
-                app:tint="?attr/colorPrimary"
-                android:layout_marginEnd="12dp"
-                android:contentDescription="@string/your_city" />
+            android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:id="@+id/llConnectionStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="4dp">
+
+                    <View
+                        android:id="@+id/vConnectionIndicator"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/ic_connection_dot" />
+
+                    <TextView
+                        android:id="@+id/tvConnectionStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/connection_checking"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnProfile"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minHeight="40dp"
+                    android:text="@string/profile"
+                    android:textAllCaps="false"
+                    android:textStyle="bold"
+                    app:cornerRadius="20dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLogout"
+                    style="?attr/materialIconButtonStyle"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:contentDescription="@string/logout"
+                    app:icon="@android:drawable/ic_lock_power_off"
+                    app:iconTint="?attr/colorError"
+                    app:iconSize="20dp" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="12dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@string/your_city"
+                    android:src="@android:drawable/ic_dialog_map"
+                    app:tint="?attr/colorPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
                     android:text="@string/your_city"
-                    android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary" />
+                    android:textColor="?android:attr/textColorSecondary"
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/tvSelectedCityName"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="@string/all_cities"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="?android:attr/textColorPrimary" />
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@android:drawable/arrow_down_float"
-                app:tint="?android:attr/textColorSecondary"
-                android:contentDescription="@string/choose_city" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -190,14 +168,14 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:cardCornerRadius="17dp"
                 app:cardElevation="0dp">
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:padding="14dp"
-                    android:src="@android:drawable/ic_menu_mylocation"
+                    android:src="@drawable/ic_physical_home"
                     android:contentDescription="@string/physical_addresses"
                     app:tint="@color/text_on_card_physical" />
             </com.google.android.material.card.MaterialCardView>
@@ -257,14 +235,14 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:cardCornerRadius="17dp"
                 app:cardElevation="0dp">
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:padding="14dp"
-                    android:src="@android:drawable/ic_menu_agenda"
+                    android:src="@drawable/ic_business_building"
                     android:contentDescription="@string/business_addresses"
                     app:tint="@color/text_on_card_business" />
             </com.google.android.material.card.MaterialCardView>
@@ -324,14 +302,14 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:cardCornerRadius="17dp"
                 app:cardElevation="0dp">
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:padding="14dp"
-                    android:src="@android:drawable/ic_menu_search"
+                    android:src="@drawable/ic_database_storage"
                     android:contentDescription="@string/database"
                     app:tint="@color/text_on_card_google" />
             </com.google.android.material.card.MaterialCardView>
@@ -353,7 +331,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="@string/database_description"
+                    android:text="@string/task_database_description"
                     android:textColor="@color/text_on_card_google"
                     android:textSize="13sp"
                     android:alpha="0.78" />
@@ -390,14 +368,14 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:cardCornerRadius="17dp"
                 app:cardElevation="0dp">
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:padding="14dp"
-                    android:src="@android:drawable/ic_menu_agenda"
+                    android:src="@drawable/ic_tasks_checklist"
                     android:contentDescription="@string/tasks"
                     app:tint="@color/text_on_card_tasks" />
             </com.google.android.material.card.MaterialCardView>

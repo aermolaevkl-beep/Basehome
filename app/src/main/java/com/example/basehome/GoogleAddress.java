@@ -116,6 +116,24 @@ public class GoogleAddress {
         return fullKey;
     }
 
+    /** Builds a physical street-and-house key without interpreting slashes in house numbers as apartments. */
+    public static String parseStreetHouseKey(String street, String house) {
+        String normalizedStreet = street == null ? "" : street.trim().toLowerCase(java.util.Locale.ROOT);
+        String normalizedHouse = house == null ? "" : house.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalizedStreet.isEmpty() || normalizedHouse.isEmpty()) return "";
+        normalizedStreet = PREFIX_PATTERN.matcher(normalizedStreet).replaceAll("");
+        return NON_ALPHANUM_PATTERN.matcher(normalizedStreet + normalizedHouse).replaceAll("");
+    }
+
+    /** Builds the same key from a task address after separating off any apartment number. */
+    public static String parseStreetHouseKey(String rawAddress) {
+        if (rawAddress == null || rawAddress.trim().isEmpty()) return "";
+        String streetHouse = new GoogleAddress(rawAddress).getStreetHouse();
+        String normalized = streetHouse.toLowerCase(java.util.Locale.ROOT);
+        normalized = PREFIX_PATTERN.matcher(normalized).replaceAll("");
+        return NON_ALPHANUM_PATTERN.matcher(normalized).replaceAll("");
+    }
+
     @SerializedName("street")
     private String street;
 

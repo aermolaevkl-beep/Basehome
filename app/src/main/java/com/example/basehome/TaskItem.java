@@ -20,10 +20,18 @@ public class TaskItem {
     private final String clientPhone;
     private final String tariff;
     private final String technology;
+    private final String city;
 
     public TaskItem(String type, String dateTime, String installerName, String address,
                     String accountNumber, String clientName, String clientPhone,
                     String tariff, String technology) {
+        this(type, dateTime, installerName, address, accountNumber, clientName, clientPhone,
+                tariff, technology, "");
+    }
+
+    public TaskItem(String type, String dateTime, String installerName, String address,
+                    String accountNumber, String clientName, String clientPhone,
+                    String tariff, String technology, String city) {
         this.type = type != null ? type.trim() : "";
         this.dateTime = dateTime != null ? dateTime.trim() : "";
         this.installerName = installerName != null ? installerName.trim() : "";
@@ -33,6 +41,29 @@ public class TaskItem {
         this.clientPhone = clientPhone != null ? clientPhone.trim() : "";
         this.tariff = tariff != null ? tariff.trim() : "";
         this.technology = technology != null ? technology.trim() : "";
+        this.city = normalizeExportCity(city);
+    }
+
+    public static String normalizeExportCity(String rawCity) {
+        if (rawCity == null) return "";
+        String value = rawCity.replace('\u00A0', ' ').trim().replaceAll("\\s+", " ");
+        return value.replaceFirst("\\s+\\d+\\s*$", "").trim();
+    }
+
+    public static String resolveCity(String taskCity, String selectedCity) {
+        String city = normalizeExportCity(taskCity);
+        if (!city.isEmpty()) return city;
+        city = normalizeExportCity(selectedCity);
+        if (city.isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(city)) return "Могилев";
+        return city;
+    }
+
+    public static String cityAddressKey(String city, String addressKey) {
+        return normalizeExportCity(city).toLowerCase(Locale.ROOT) + "|" + addressKey;
+    }
+
+    private static boolean looksLikeCityWithNumericSuffix(String value) {
+        return value != null && value.trim().matches("(?iu)[\\p{L}][\\p{L} .'-]*\\s+\\d+");
     }
 
     public static TaskItem fromRowString(String row) {
@@ -78,8 +109,24 @@ public class TaskItem {
                 String phone = parts.get(phoneIdx);
                 String tariff = phoneIdx + 1 < parts.size() ? parts.get(phoneIdx + 1) : "";
                 String tech = phoneIdx + 2 < parts.size() ? parts.get(phoneIdx + 2) : "";
-
-                return new TaskItem(type, dateTime, installer, addr.toString(), account, clientName.toString(), phone, tariff, tech);
+                String city = "";
+                int cityIndex = -1;
+                for (int i = phoneIdx + 1; i < parts.size(); i++) {
+                    String candidate = parts.get(i);
+                    if (looksLikeCityWithNumericSuffix(candidate)) {
+                        city = normalizeExportCity(candidate);
+                        cityIndex = i;
+                        break;
+                    }
+                }
+                if (cityIndex == phoneIdx + 1) tariff = city;
+                if (cityIndex == phoneIdx + 2) tech = city;
+                if (cityIndex > phoneIdx + 2) {
+                    String trailing = String.join(" ", parts.subList(phoneIdx + 2, parts.size()));
+                    int marker = trailing.toLowerCase(Locale.ROOT).lastIndexOf(city.toLowerCase(Locale.ROOT));
+                    if (marker >= 0) tech = trailing.substring(0, marker).trim();
+                }
+                return new TaskItem(type, dateTime, installer, addr.toString(), account, clientName.toString(), phone, tariff, tech, city);
             }
         }
 
@@ -252,7 +299,13 @@ public class TaskItem {
         return false;
     }
 
-    public String getType() { return type; }
+    public String getType() { return cleanWorkType(type); }
+
+    private static String cleanWorkType(String rawType) {
+        if (rawType == null) return "";
+        String value = rawType.trim();
+        return value.replaceFirst("^[\\p{L}\\p{N}._/-]*\\d[\\p{L}\\p{N}._/-]*\\s+", "").trim();
+    }
 
     public String getDateTime() {
         if (dateTime == null || dateTime.trim().isEmpty()) return "";
@@ -277,9 +330,16 @@ public class TaskItem {
 
     public String getInstallerName() { return installerName; }
     public String getAddress() { return address; }
+    public String getCity() { return city; }
     public String getAccountNumber() { return accountNumber; }
     public String getClientName() { return clientName; }
     public String getClientPhone() { return clientPhone; }
     public String getTariff() { return tariff; }
     public String getTechnology() { return technology; }
+
+    public TaskItem withCity(String resolvedCity) {
+        return new TaskItem(type, dateTime, installerName, address, accountNumber, clientName,
+                clientPhone, tariff, technology, resolvedCity);
+    }
+
 }

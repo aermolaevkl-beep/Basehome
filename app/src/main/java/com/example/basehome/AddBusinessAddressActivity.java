@@ -16,7 +16,7 @@ import com.google.firebase.database.FirebaseDatabase;
 
 public class AddBusinessAddressActivity extends AppCompatActivity {
 
-    private EditText etStreet, etHouse, etCenter;
+    private EditText etStreet, etHouse, etCenter, etPdfUrl;
     private Spinner spinnerCity;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
@@ -33,6 +33,7 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
         etStreet = findViewById(R.id.etBusinessStreet);
         etHouse = findViewById(R.id.etBusinessHouse);
         etCenter = findViewById(R.id.etCenterName);
+        etPdfUrl = findViewById(R.id.etPdfUrl);
         spinnerCity = findViewById(R.id.spinnerBusinessCity);
         btnSave = findViewById(R.id.btnSaveBusiness);
         ImageButton btnBack = findViewById(R.id.btnBackAddBusiness);
@@ -69,14 +70,14 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
         String streetInput = etStreet.getText().toString().trim();
         String houseInput = etHouse.getText().toString().trim();
         String centerInput = etCenter.getText().toString().trim();
+        String pdfUrlInput = etPdfUrl != null ? etPdfUrl.getText().toString().trim() : "";
         String city = spinnerCity.getSelectedItem().toString();
 
         if (streetInput.isEmpty() || houseInput.isEmpty() || centerInput.isEmpty()) {
-            Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Заполните все обязательные поля", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Блокируем кнопку
         btnSave.setEnabled(false);
         btnSave.setText("Сохранение...");
 
@@ -98,6 +99,9 @@ public class AddBusinessAddressActivity extends AppCompatActivity {
                 if (userName == null) userName = user.getEmail();
                 
                 BusinessAddress address = new BusinessAddress(street, houseInput, city, center, user.getUid(), userName);
+                if (!pdfUrlInput.isEmpty()) {
+                    address.setPdfUrl(pdfUrlInput);
+                }
                 if (id != null) {
                     databaseReference.child(id).setValue(address)
                             .addOnSuccessListener(aVoid -> {

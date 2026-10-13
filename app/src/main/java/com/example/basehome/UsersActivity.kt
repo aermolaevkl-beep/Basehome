@@ -6,11 +6,11 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Toast
-import com.google.firebase.auth.FirebaseAuth
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 class UsersActivity : AppCompatActivity() {
@@ -18,37 +18,30 @@ class UsersActivity : AppCompatActivity() {
     private lateinit var rvUsers: RecyclerView
     private lateinit var adapter: UsersAdapter
     private lateinit var database: FirebaseDatabase
-    
     private val usersList = mutableListOf<UserDetail>()
     private val addressCounts = mutableMapOf<String, Int>()
+    private val entranceCounts = mutableMapOf<String, Int>()
     private val commentCounts = mutableMapOf<String, Int>()
+
     private val userListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
-            val newList = mutableListOf<UserDetail>()
-            for (u in snapshot.children) {
-                val uid = u.key ?: continue
-                val name = u.child("name").getValue(String::class.java) ?: getString(R.string.anonymous)
-                val email = u.child("email").getValue(String::class.java) ?: ""
-                val isOnline = u.child("isOnline").getValue(Boolean::class.java) ?: false
-                val lastSeen = u.child("lastSeen").getValue(Long::class.java) ?: 0L
-                val isAdmin = u.child("isAdmin").getValue(Boolean::class.java) ?: false
-                val selectedCity = u.child("selectedCity").getValue(String::class.java) ?: ""
-                val appVersion = u.child("appVersion").getValue(String::class.java) ?: ""
-
-                newList.add(UserDetail(
+            val newList = snapshot.children.mapNotNull { u ->
+                val uid = u.key ?: return@mapNotNull null
+                UserDetail(
                     uid = uid,
-                    name = name,
-                    email = email,
+                    name = u.child("name").getValue(String::class.java) ?: getString(R.string.anonymous),
+                    email = u.child("email").getValue(String::class.java) ?: "",
                     addressCount = addressCounts[uid] ?: 0,
+                    entranceCount = entranceCounts[uid] ?: 0,
                     commentCount = commentCounts[uid] ?: 0,
-                    isOnline = isOnline,
-                    lastSeen = lastSeen,
-                    isAdmin = isAdmin,
-                    selectedCity = selectedCity,
-                    appVersion = appVersion
-                ))
-            }
-            newList.sortWith(compareByDescending<UserDetail> { it.isOnline }.thenByDescending { it.addressCount })
+                    isOnline = u.child("isOnline").getValue(Boolean::class.java) ?: false,
+                    lastSeen = u.child("lastSeen").getValue(Long::class.java) ?: 0L,
+                    isAdmin = u.child("isAdmin").getValue(Boolean::class.java) ?: false,
+                    selectedCity = u.child("selectedCity").getValue(String::class.java) ?: "",
+                    appVersion = u.child("appVersion").getValue(String::class.java) ?: ""
+                )
+            }.sortedWith(compareByDescending<UserDetail> { it.isOnline }
+                .thenByDescending { it.addressCount + it.entranceCount })
             adapter.updateList(newList)
         }
 
@@ -60,11 +53,9 @@ class UsersActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_users)
-
         database = FirebaseDatabase.getInstance()
         rvUsers = findViewById(R.id.rvUsersList)
         findViewById<ImageButton>(R.id.btnBackUsers).setOnClickListener { finish() }
-
         rvUsers.layoutManager = LinearLayoutManager(this)
         adapter = UsersAdapter(usersList, { user, newAdminState ->
             val actionText = if (newAdminState) "Назначить ${user.name} администратором?" else "Снять права администратора у ${user.name}?"
@@ -73,44 +64,58 @@ class UsersActivity : AppCompatActivity() {
                 .setMessage(actionText)
                 .setPositiveButton("Да") { _, _ ->
                     database.getReference("users").child(user.uid).child("isAdmin").setValue(newAdminState)
-                        .addOnSuccessListener {
-                            Toast.makeText(this, "Права изменены", Toast.LENGTH_SHORT).show()
-                        }
+                        .addOnSuccessListener { Toast.makeText(this, "Права изменены", Toast.LENGTH_SHORT).show() }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }, { user -> showEditProfileDialog(user) })
         rvUsers.adapter = adapter
-
         loadData()
     }
 
     private fun loadData() {
         database.getReference("addresses").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                addressCounts.clear()
                 for (item in snapshot.children) {
-                    val uid = item.child("userId").getValue(String::class.java) ?: ""
-                    if (uid.isNotEmpty()) {
-                        addressCounts[uid] = (addressCounts[uid] ?: 0) + 1
+                    val uid = item.child("userId").getValue(String::class.java).orEmpty()
+                    if (uid.isNotEmpty()) addressCounts[uid] = (addressCounts[uid] ?: 0) + 1
+                }
+                loadEntranceCounts()
+            }
+            override fun onCancelled(error: DatabaseError) { showMessage(error.message) }
+        })
+    }
+
+    private fun loadEntranceCounts() {
+        database.getReference("entrances").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                entranceCounts.clear()
+                for (addressNode in snapshot.children) {
+                    for (entranceNode in addressNode.children) {
+                        val uid = entranceNode.child("lastEditorId").getValue(String::class.java).orEmpty()
+                        if (uid.isNotEmpty()) entranceCounts[uid] = (entranceCounts[uid] ?: 0) + 1
                     }
                 }
-                
-                database.getReference("comments").addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(commSnapshot: DataSnapshot) {
-                        for (addrNode in commSnapshot.children) {
-                            for (commentNode in addrNode.children) {
-                                val uid = commentNode.child("authorId").getValue(String::class.java) ?: ""
-                                if (uid.isNotEmpty()) {
-                                    commentCounts[uid] = (commentCounts[uid] ?: 0) + 1
-                                }
-                            }
-                        }
-                        listenToUsers()
-                    }
-                    override fun onCancelled(error: DatabaseError) {}
-                })
+                loadCommentCounts()
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) { showMessage(error.message) }
+        })
+    }
+
+    private fun loadCommentCounts() {
+        database.getReference("comments").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                commentCounts.clear()
+                for (addressNode in snapshot.children) {
+                    for (commentNode in addressNode.children) {
+                        val uid = commentNode.child("authorId").getValue(String::class.java).orEmpty()
+                        if (uid.isNotEmpty()) commentCounts[uid] = (commentCounts[uid] ?: 0) + 1
+                    }
+                }
+                listenToUsers()
+            }
+            override fun onCancelled(error: DatabaseError) { showMessage(error.message) }
         })
     }
 
@@ -124,14 +129,11 @@ class UsersActivity : AppCompatActivity() {
             showMessage(getString(R.string.account_creation_sign_in_required))
             return
         }
-
         database.getReference("users").child(currentUser.uid).child("isAdmin").get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot.getValue(Boolean::class.java) != true) {
                     showMessage(getString(R.string.account_creation_admin_only))
-                } else {
-                    showProfileEditor(user)
-                }
+                } else showProfileEditor(user)
             }
             .addOnFailureListener { error -> showMessage(error.localizedMessage ?: "") }
     }
@@ -156,7 +158,6 @@ class UsersActivity : AppCompatActivity() {
         }
         container.addView(nameInput)
         container.addView(cityInput)
-
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.edit_user_profile_title, user.name))
             .setMessage(R.string.edit_user_profile_fields_note)
@@ -164,7 +165,6 @@ class UsersActivity : AppCompatActivity() {
             .setPositiveButton(R.string.save, null)
             .setNegativeButton(android.R.string.cancel, null)
             .create()
-
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = nameInput.text.toString().trim()
@@ -173,10 +173,7 @@ class UsersActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
-                val updates = mapOf<String, Any>(
-                    "name" to name,
-                    "selectedCity" to cityInput.text.toString().trim()
-                )
+                val updates = mapOf<String, Any>("name" to name, "selectedCity" to cityInput.text.toString().trim())
                 database.getReference("users").child(user.uid).updateChildren(updates)
                     .addOnSuccessListener {
                         if (dialog.isShowing) dialog.dismiss()

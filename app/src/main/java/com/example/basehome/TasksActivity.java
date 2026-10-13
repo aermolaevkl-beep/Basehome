@@ -362,7 +362,7 @@ public class TasksActivity extends AppCompatActivity {
                 });
     }
 
-    private static final String ADDRESS_DATABASE_CITY = "Могилев";
+    private static final String DEFAULT_ADDRESS_DATABASE_CITY = "Могилев";
 
     public static void clearAddressMemoryCache() {
         // History records are fetched from Room by indexed house keys for every task refresh.
@@ -535,7 +535,8 @@ public class TasksActivity extends AppCompatActivity {
             if (item != null) {
                 parsedRows++;
                 if (TaskItem.matchesUser(item.getInstallerName(), currentUserName)) {
-                    matchedTasks.add(item);
+                    String selectedCity = CityManager.getSelectedCity(this);
+                    matchedTasks.add(item.withCity(TaskItem.resolveCity(item.getCity(), selectedCity)));
                     matchedRows++;
                 }
             }
@@ -570,7 +571,7 @@ public class TasksActivity extends AppCompatActivity {
         try {
             Set<String> targetHouseKeys = new HashSet<>();
             for (TaskItem task : matchedTasks) {
-                String houseKey = GoogleAddress.parseHouseKey(task.getAddress());
+                String houseKey = GoogleAddress.parseStreetHouseKey(task.getAddress());
                 if (!houseKey.isEmpty()) {
                     targetHouseKeys.add(houseKey);
                 }
@@ -584,15 +585,26 @@ public class TasksActivity extends AppCompatActivity {
             }
 
             long roomQueryStartTime = SystemClock.elapsedRealtime();
-            List<GoogleAddressEntity> entities = AppDatabase.getInstance(getApplicationContext())
-                    .googleAddressDao()
-                    .getEntitiesForCityAndHouseKeys(ADDRESS_DATABASE_CITY, new ArrayList<>(targetHouseKeys));
+            List<GoogleAddressEntity> entities = new ArrayList<>();
+            Map<String, List<String>> houseKeysByCity = new LinkedHashMap<>();
+            for (TaskItem task : matchedTasks) {
+                String houseKey = GoogleAddress.parseStreetHouseKey(task.getAddress());
+                if (houseKey.isEmpty()) continue;
+                String city = TaskItem.resolveCity(task.getCity(), CityManager.getSelectedCity(this));
+                houseKeysByCity.computeIfAbsent(city, ignored -> new ArrayList<>()).add(houseKey);
+            }
+            for (Map.Entry<String, List<String>> entry : houseKeysByCity.entrySet()) {
+                List<GoogleAddressEntity> cityEntities = AppDatabase.getInstance(getApplicationContext())
+                        .googleAddressDao()
+                        .getEntitiesForCityAndHouseKeys(entry.getKey(), entry.getValue());
+                if (cityEntities != null) entities.addAll(cityEntities);
+            }
             roomQueryMs = SystemClock.elapsedRealtime() - roomQueryStartTime;
-            if (entities == null) return addressHistoryMap;
             queriedEntityCount = entities.size();
 
             for (GoogleAddressEntity entity : entities) {
-                if (!ADDRESS_DATABASE_CITY.equalsIgnoreCase(entity.getCity())) continue;
+                List<String> cityHouseKeys = houseKeysByCity.get(entity.getCity());
+                if (cityHouseKeys == null) continue;
                 String fullText = entity.getFullText();
                 if (fullText == null || fullText.trim().isEmpty()) continue;
 
@@ -600,11 +612,12 @@ public class TasksActivity extends AppCompatActivity {
                 // apartment fields. Use those instead of re-parsing every historical
                 // fullText row (which also contains date, installer and other metadata).
                 String houseKey = entity.getStreetHouseKey();
-                if (houseKey.isEmpty() || !targetHouseKeys.contains(houseKey)) continue;
+                if (houseKey.isEmpty() || !cityHouseKeys.contains(houseKey)) continue;
                 String fullKey = GoogleAddress.getFullAddressKey(houseKey, entity.getApartment());
+                String cityKey = TaskItem.cityAddressKey(entity.getCity(), houseKey);
 
-                addAddressVisit(addressHistoryMap, fullKey, fullText);
-                addAddressVisit(addressHistoryMap, houseKey, fullText);
+                addAddressVisit(addressHistoryMap, TaskItem.cityAddressKey(entity.getCity(), fullKey), fullText);
+                addAddressVisit(addressHistoryMap, cityKey, fullText);
             }
         } catch (Exception e) {
             Log.w(TAG, "Address history lookup failed", e);
@@ -629,7 +642,7 @@ public class TasksActivity extends AppCompatActivity {
         visits.add(visit);
     }
 
-    private void createPhysicalAddressFromTask(String streetHouse) {
+    private void createPhysicalAddressFromTask(String streetHouse, String taskCity) {
         refreshAddressContextOnResume = true;
         FirebaseUser user = auth.getCurrentUser();
         if (user == null) {
@@ -658,36 +671,48 @@ public class TasksActivity extends AppCompatActivity {
             return;
         }
 
-        String city = CityManager.getSelectedCity(this);
-        if (city == null || city.trim().isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(city)) {
-            city = ADDRESS_DATABASE_CITY;
+        String city = TaskItem.normalizeExportCity(taskCity);
+        if (city.isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(city)) {
+            city = TaskItem.normalizeExportCity(CityManager.getSelectedCity(this));
+        }
+        if (city.isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(city)) {
+            Toast.makeText(this, R.string.task_physical_address_city_missing, Toast.LENGTH_LONG).show();
+            return;
         }
         final String selectedCity = city;
         final String street = parsedStreet;
         final String house = parsedHouse;
-        String houseKey = GoogleAddress.parseHouseKey(street + ", " + house);
-        Toast.makeText(this, R.string.task_physical_address_create_title, Toast.LENGTH_SHORT).show();
-        FirebaseDatabase.getInstance().getReference("addresses").get()
-                .addOnSuccessListener(snapshot -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    for (DataSnapshot child : snapshot.getChildren()) {
-                        Address existing = child.getValue(Address.class);
-                        if (existing == null) continue;
-                        String existingCity = existing.getCity() == null ? ADDRESS_DATABASE_CITY : existing.getCity();
-                        String existingKey = GoogleAddress.parseHouseKey(
-                                (existing.getStreet() == null ? "" : existing.getStreet()) + ", "
-                                        + (existing.getHouse() == null ? "" : existing.getHouse()));
-                        if (selectedCity.equalsIgnoreCase(existingCity) && houseKey.equals(existingKey)) {
-                            openPhysicalAddress(child.getKey());
-                            return;
-                        }
-                    }
-                    createPhysicalAddress(street, house, selectedCity, user.getUid());
+        final String displayAddress = street + ", " + house;
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.task_physical_address_create_title)
+                .setMessage(getString(R.string.task_physical_address_confirm, displayAddress, selectedCity))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.save, (dialog, which) -> {
+                    String houseKey = GoogleAddress.parseStreetHouseKey(street, house);
+                    FirebaseDatabase.getInstance().getReference("addresses").get()
+                            .addOnSuccessListener(snapshot -> {
+                                if (isFinishing() || isDestroyed()) return;
+                                for (DataSnapshot child : snapshot.getChildren()) {
+                                    Address existing = child.getValue(Address.class);
+                                    if (existing == null) continue;
+                                    String existingCity = existing.getCity() == null
+                                            ? DEFAULT_ADDRESS_DATABASE_CITY : existing.getCity();
+                                    String existingKey = GoogleAddress.parseStreetHouseKey(
+                                            existing.getStreet(), existing.getHouse());
+                                    if (selectedCity.equalsIgnoreCase(existingCity)
+                                            && houseKey.equals(existingKey)) {
+                                        openPhysicalAddress(child.getKey());
+                                        return;
+                                    }
+                                }
+                                createPhysicalAddress(street, house, selectedCity, user.getUid());
+                            })
+                            .addOnFailureListener(error -> Toast.makeText(this,
+                                    getString(R.string.task_physical_address_create_failed,
+                                            error.getLocalizedMessage() == null ? "" : error.getLocalizedMessage()),
+                                    Toast.LENGTH_LONG).show());
                 })
-                .addOnFailureListener(error -> Toast.makeText(this,
-                        getString(R.string.task_physical_address_create_failed,
-                                error.getLocalizedMessage() == null ? "" : error.getLocalizedMessage()),
-                        Toast.LENGTH_LONG).show());
+                .show();
     }
 
     private void createPhysicalAddress(String street, String house, String city, String userId) {
@@ -754,18 +779,25 @@ public class TasksActivity extends AppCompatActivity {
                 tasks.addAll(group.getTasks());
             }
         }
-        return tasks;
+        String selectedCity = CityManager.getSelectedCity(this);
+        List<TaskItem> normalizedTasks = new ArrayList<>(tasks.size());
+        for (TaskItem task : tasks) {
+            normalizedTasks.add(task.withCity(TaskItem.resolveCity(task.getCity(), selectedCity)));
+        }
+        return normalizedTasks;
     }
 
     private Map<String, TaskAdapter.PhysicalAddressContext> buildPhysicalAddressContextMap(
             List<TaskItem> matchedTasks) {
         Map<String, TaskAdapter.PhysicalAddressContext> result = new HashMap<>();
-        Set<String> taskHouseKeys = new HashSet<>();
+        Map<String, Set<String>> taskHouseKeysByCity = new LinkedHashMap<>();
         for (TaskItem task : matchedTasks) {
-            String key = GoogleAddress.parseHouseKey(task.getAddress());
-            if (key != null && !key.isEmpty()) taskHouseKeys.add(key);
+            String key = GoogleAddress.parseStreetHouseKey(task.getAddress());
+            if (key.isEmpty()) continue;
+            String city = TaskItem.resolveCity(task.getCity(), CityManager.getSelectedCity(this));
+            taskHouseKeysByCity.computeIfAbsent(city, ignored -> new HashSet<>()).add(key);
         }
-        if (taskHouseKeys.isEmpty()) return result;
+        if (taskHouseKeysByCity.isEmpty()) return result;
 
         try {
             DataSnapshot addressSnapshot = Tasks.await(
@@ -775,12 +807,15 @@ public class TasksActivity extends AppCompatActivity {
             for (DataSnapshot child : addressSnapshot.getChildren()) {
                 Address address = child.getValue(Address.class);
                 if (address == null) continue;
-                String streetHouse = ((address.getStreet() == null ? "" : address.getStreet()) + ", "
-                        + (address.getHouse() == null ? "" : address.getHouse())).trim();
-                String key = GoogleAddress.parseHouseKey(streetHouse);
-                if (key.isEmpty() || !taskHouseKeys.contains(key)) continue;
+                String key = GoogleAddress.parseStreetHouseKey(address.getStreet(), address.getHouse());
+                if (key.isEmpty()) continue;
+                boolean addressHasCity = address.getCity() != null && !address.getCity().trim().isEmpty();
+                String city = findMatchingTaskCity(taskHouseKeysByCity, address, key);
+                if (city == null) continue;
+                if (!addressHasCity) address.setCity(city);
                 address.setId(child.getKey());
-                matchedAddresses.put(key, address);
+                String cityAddressKey = TaskItem.cityAddressKey(city, key);
+                matchedAddresses.put(cityAddressKey, address);
             }
 
             Map<String, com.google.android.gms.tasks.Task<DataSnapshot>> entranceTasks = new LinkedHashMap<>();
@@ -805,16 +840,19 @@ public class TasksActivity extends AppCompatActivity {
                 Address address = entry.getValue();
                 String id = address.getId();
                 if (id == null || id.isEmpty()) continue;
+                com.google.android.gms.tasks.Task<DataSnapshot> entranceTask = entranceTasks.get(key);
+                com.google.android.gms.tasks.Task<DataSnapshot> commentTask = commentTasks.get(key);
+                if (entranceTask == null || commentTask == null) continue;
                 DataSnapshot entrances;
                 DataSnapshot comments;
                 try {
-                    entrances = Tasks.await(entranceTasks.get(key), 10, TimeUnit.SECONDS);
+                    entrances = Tasks.await(entranceTask, 10, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     Log.w(TAG, "Could not load entrances for address " + id, e);
                     entrances = null;
                 }
                 try {
-                    comments = Tasks.await(commentTasks.get(key), 10, TimeUnit.SECONDS);
+                    comments = Tasks.await(commentTask, 10, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     Log.w(TAG, "Could not load comments for address " + id, e);
                     comments = null;
@@ -860,13 +898,25 @@ public class TasksActivity extends AppCompatActivity {
 
                 String label = (address.getStreet() == null ? "" : address.getStreet()) + ", "
                         + (address.getHouse() == null ? "" : address.getHouse());
-                result.put(key, new TaskAdapter.PhysicalAddressContext(
-                        id, label, android.text.TextUtils.join("\n", detailLines)));
+                TaskAdapter.PhysicalAddressContext context = new TaskAdapter.PhysicalAddressContext(
+                        id, label, android.text.TextUtils.join("\n", detailLines));
+                result.put(key, context);
             }
         } catch (Exception e) {
             Log.w(TAG, "Physical address lookup failed", e);
         }
         return result;
+    }
+
+    private String findMatchingTaskCity(Map<String, Set<String>> houseKeysByCity, Address address, String houseKey) {
+        String addressCity = TaskItem.normalizeExportCity(address.getCity());
+        for (Map.Entry<String, Set<String>> entry : houseKeysByCity.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(addressCity)
+                    && entry.getValue().contains(houseKey)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     private void applyProcessedTasks(List<TaskItem> matchedTasks, List<TaskDateGroup> dateGroups,

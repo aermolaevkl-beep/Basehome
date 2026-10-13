@@ -12,6 +12,7 @@ public class BusinessAddress {
     private String userName;
     private String socketLocation;
     private String reserveInfo;
+    private String pdfUrl;
 
     public BusinessAddress() {}
 
@@ -33,6 +34,16 @@ public class BusinessAddress {
         this.userName = userName;
     }
 
+    public BusinessAddress(String street, String house, String city, String centerName, String userId, String userName, String pdfUrl) {
+        this.street = street;
+        this.house = house;
+        this.city = city;
+        this.centerName = centerName;
+        this.userId = userId;
+        this.userName = userName;
+        this.pdfUrl = pdfUrl;
+    }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getStreet() { return street; }
@@ -51,6 +62,8 @@ public class BusinessAddress {
     public void setSocketLocation(String socketLocation) { this.socketLocation = socketLocation; }
     public String getReserveInfo() { return reserveInfo; }
     public void setReserveInfo(String reserveInfo) { this.reserveInfo = reserveInfo; }
+    public String getPdfUrl() { return pdfUrl; }
+    public void setPdfUrl(String pdfUrl) { this.pdfUrl = pdfUrl; }
 
     @Override
     public boolean equals(Object o) {
@@ -61,11 +74,12 @@ public class BusinessAddress {
                 Objects.equals(street, that.street) &&
                 Objects.equals(house, that.house) &&
                 Objects.equals(city, that.city) &&
-                Objects.equals(centerName, that.centerName);
+                Objects.equals(centerName, that.centerName) &&
+                Objects.equals(pdfUrl, that.pdfUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, street, house, city, centerName);
+        return Objects.hash(id, street, house, city, centerName, pdfUrl);
     }
 }

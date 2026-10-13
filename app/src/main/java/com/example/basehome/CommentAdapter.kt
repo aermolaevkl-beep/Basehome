@@ -120,11 +120,10 @@ class CommentAdapter(
         params.setMargins(marginStart, (4 * density).toInt(), 0, (4 * density).toInt())
         holder.rootLayout.layoutParams = params
 
-        if (!comment.parentId.isNullOrEmpty()) {
-            holder.rootLayout.setBackgroundResource(R.drawable.reply_background)
-        } else {
-            holder.rootLayout.setBackgroundResource(android.R.color.white)
-        }
+        holder.rootLayout.setBackgroundResource(
+            if (!comment.parentId.isNullOrEmpty()) R.drawable.reply_background
+            else R.drawable.comment_background
+        )
 
         holder.btnPlus.setOnClickListener { 
             val pos = holder.bindingAdapterPosition

@@ -17,42 +17,46 @@ class ProfileActivity : AppCompatActivity() {
 
     private lateinit var tvUserName: TextView
     private lateinit var tvUserRating: TextView
+    private lateinit var tvRankProgress: TextView
+    private lateinit var tvProfileCity: TextView
+    private lateinit var tvContributionSummary: TextView
+    private lateinit var tvProfileEntranceCount: TextView
+    private lateinit var rvRecentActivity: RecyclerView
     private lateinit var tvAddressesCount: TextView
     private lateinit var tvCommentsCount: TextView
     private lateinit var btnBack: ImageButton
     private lateinit var btnLogout: ImageButton
     private lateinit var btnViewUsers: Button
-    
+    private lateinit var btnChangeCity: MaterialButton
     private lateinit var rvAddresses: RecyclerView
     private lateinit var rvComments: RecyclerView
     private lateinit var rvGlobalRanking: RecyclerView
-    
     private lateinit var btnToggleAddresses: MaterialButton
     private lateinit var llAddressesContainer: LinearLayout
     private lateinit var btnLoadMoreAddresses: Button
-    
     private lateinit var btnToggleComments: MaterialButton
     private lateinit var llCommentsContainer: LinearLayout
     private lateinit var btnLoadMoreComments: Button
-    
     private lateinit var auth: FirebaseAuth
     private lateinit var database: FirebaseDatabase
-    
+
     private val userAddressesFull = mutableListOf<Address>()
     private val userCommentsFull = mutableListOf<Comment>()
     private val globalRanks = mutableListOf<UserRank>()
-    
     private var addressesLimit = 10
     private var commentsLimit = 10
-    
     private lateinit var addressAdapter: AddressAdapter
     private lateinit var commentAdapter: CommentAdapter
     private lateinit var rankingAdapter: UserRankAdapter
-    
+    private lateinit var recentActivityAdapter: RecentActivityAdapter
     private var isAdmin = false
     private val userNamesMap = mutableMapOf<String, String>()
     private val adminUsersMap = mutableMapOf<String, Boolean>()
     private var currentUid: String = ""
+    private var selectedCity: String = CityManager.ALL_CITIES
+    private var currentAddressCount = 0
+    private var currentEntranceCount = 0
+    private var currentCommentCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,62 +65,58 @@ class ProfileActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
-        currentUid = auth.currentUser?.uid ?: run { 
+        currentUid = auth.currentUser?.uid ?: run {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
-            return 
+            return
         }
 
-        // Инициализация View
         btnBack = findViewById(R.id.btnBackProfile)
         btnLogout = findViewById(R.id.btnLogout)
         tvUserName = findViewById(R.id.tvUserName)
         tvUserRating = findViewById(R.id.tvUserRating)
+        tvRankProgress = findViewById(R.id.tvRankProgress)
+        tvProfileCity = findViewById(R.id.tvProfileCity)
+        tvContributionSummary = findViewById(R.id.tvContributionSummary)
+        tvProfileEntranceCount = findViewById(R.id.tvProfileEntranceCount)
+        rvRecentActivity = findViewById(R.id.rvRecentActivity)
         tvAddressesCount = findViewById(R.id.tvAddressesCount)
         tvCommentsCount = findViewById(R.id.tvCommentsCount)
         btnViewUsers = findViewById(R.id.btnViewUsers)
-        
+        btnChangeCity = findViewById(R.id.btnChangeCity)
         rvAddresses = findViewById(R.id.rvUserAddresses)
         rvComments = findViewById(R.id.rvUserComments)
         rvGlobalRanking = findViewById(R.id.rvGlobalRanking)
-        
         btnToggleAddresses = findViewById(R.id.btnToggleAddresses)
         llAddressesContainer = findViewById(R.id.llAddressesContainer)
         btnLoadMoreAddresses = findViewById(R.id.btnLoadMoreAddresses)
-        
         btnToggleComments = findViewById(R.id.btnToggleComments)
         llCommentsContainer = findViewById(R.id.llCommentsContainer)
         btnLoadMoreComments = findViewById(R.id.btnLoadMoreComments)
 
-        // Скрываем списки по умолчанию
         llAddressesContainer.isVisible = false
         llCommentsContainer.isVisible = false
-
         btnBack.setOnClickListener { finish() }
         btnLogout.setOnClickListener { showLogoutDialog() }
         tvUserName.setOnClickListener { showChangeNameDialog() }
+        btnChangeCity.setOnClickListener { showCityPicker() }
         btnViewUsers.setOnClickListener { startActivity(Intent(this, UsersActivity::class.java)) }
+        tvUserName.text = auth.currentUser?.email?.substringBefore("@") ?: getString(R.string.user_default_name)
 
         setupUI()
-        
-        // Показываем временное имя
-        tvUserName.text = auth.currentUser?.email?.substringBefore("@") ?: "Пользователь"
-
         listenToUserData()
-        loadAllUserNames {
-            loadAddressesAndRanking()
-        }
+        loadAllUserNames { loadAddressesAndRanking() }
     }
 
     private fun listenToUserData() {
         database.getReference("users").child(currentUid).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 isAdmin = snapshot.child("isAdmin").getValue(Boolean::class.java) ?: false
-                val name = snapshot.child("name").getValue(String::class.java)
-                
-                updateUserNameDisplay(name)
+                updateUserNameDisplay(snapshot.child("name").getValue(String::class.java))
+                selectedCity = snapshot.child("selectedCity").getValue(String::class.java)
+                    ?.takeIf { it.isNotBlank() } ?: CityManager.ALL_CITIES
+                tvProfileCity.text = getString(R.string.profile_city_format, selectedCity)
                 btnViewUsers.isVisible = isAdmin
-                
                 if (::addressAdapter.isInitialized) addressAdapter.setAdmin(isAdmin)
                 if (::commentAdapter.isInitialized) commentAdapter.setAdmin(isAdmin)
             }
@@ -125,7 +125,7 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun updateUserNameDisplay(name: String?) {
-        val baseName = name ?: auth.currentUser?.email?.substringBefore("@") ?: "Пользователь"
+        val baseName = name ?: auth.currentUser?.email?.substringBefore("@") ?: getString(R.string.user_default_name)
         tvUserName.text = RankHelper.formatNameWithRank(currentUid, baseName)
     }
 
@@ -135,10 +135,9 @@ class ProfileActivity : AppCompatActivity() {
                 for (u in snapshot.children) {
                     val name = u.child("name").getValue(String::class.java)
                     val email = u.child("email").getValue(String::class.java)
-                    val isAdminUser = u.child("isAdmin").getValue(Boolean::class.java) ?: false
                     val uid = u.key ?: continue
-                    userNamesMap[uid] = if (!name.isNullOrEmpty()) name else email?.substringBefore("@") ?: "Аноним"
-                    adminUsersMap[uid] = isAdminUser
+                    userNamesMap[uid] = name?.takeIf { it.isNotBlank() } ?: email?.substringBefore("@") ?: getString(R.string.anonymous)
+                    adminUsersMap[uid] = u.child("isAdmin").getValue(Boolean::class.java) ?: false
                 }
                 onComplete()
             }
@@ -147,179 +146,226 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        addressAdapter = AddressAdapter(mutableListOf(), { addr ->
-            val intent = Intent(this, AddressDetailActivity::class.java).apply { putExtra("addressId", addr.id) }
-            startActivity(intent)
-        }, { addr -> confirmDeleteAddress(addr) })
+        addressAdapter = AddressAdapter(mutableListOf(), { address ->
+            startActivity(Intent(this, AddressDetailActivity::class.java).putExtra("addressId", address.id))
+        }, { address -> confirmDeleteAddress(address) })
         rvAddresses.layoutManager = LinearLayoutManager(this)
         rvAddresses.adapter = addressAdapter
 
         commentAdapter = CommentAdapter(mutableListOf(), isAdmin, { _, _ -> }, { _ -> },
-            { c -> confirmDeleteComment(c) }, { c -> showEditCommentDialog(c) })
+            { comment -> confirmDeleteComment(comment) }, { comment -> showEditCommentDialog(comment) })
         rvComments.layoutManager = LinearLayoutManager(this)
         rvComments.adapter = commentAdapter
 
-        rankingAdapter = UserRankAdapter(globalRanks) { userRank ->
-            Toast.makeText(this, "Пользователь: ${userRank.userName}", Toast.LENGTH_SHORT).show()
+        rankingAdapter = UserRankAdapter(globalRanks) { rank ->
+            Toast.makeText(this, getString(R.string.user_rank_toast, rank.userName), Toast.LENGTH_SHORT).show()
         }
         rvGlobalRanking.layoutManager = LinearLayoutManager(this)
         rvGlobalRanking.adapter = rankingAdapter
-        
+
+        recentActivityAdapter = RecentActivityAdapter(emptyList())
+        rvRecentActivity.layoutManager = LinearLayoutManager(this)
+        rvRecentActivity.adapter = recentActivityAdapter
+
         btnToggleAddresses.setOnClickListener { toggleSection(llAddressesContainer, btnToggleAddresses) }
         btnToggleComments.setOnClickListener { toggleSection(llCommentsContainer, btnToggleComments) }
-        
-        btnLoadMoreAddresses.setOnClickListener {
-            addressesLimit += 10
-            updateVisibleAddresses()
-        }
-        btnLoadMoreComments.setOnClickListener {
-            commentsLimit += 10
-            updateVisibleComments()
-        }
+        btnLoadMoreAddresses.setOnClickListener { addressesLimit += 10; updateVisibleAddresses() }
+        btnLoadMoreComments.setOnClickListener { commentsLimit += 10; updateVisibleComments() }
     }
 
     private fun toggleSection(container: View, button: MaterialButton) {
-        val isNowVisible = !container.isVisible
-        container.isVisible = isNowVisible
-        button.setIconResource(if (isNowVisible) android.R.drawable.arrow_up_float else android.R.drawable.arrow_down_float)
+        val visible = !container.isVisible
+        container.isVisible = visible
+        button.setIconResource(if (visible) android.R.drawable.arrow_up_float else android.R.drawable.arrow_down_float)
     }
 
     private fun loadAddressesAndRanking() {
         database.getReference("addresses").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val countsMap = mutableMapOf<String, Int>()
+                val counts = mutableMapOf<String, Int>()
                 userAddressesFull.clear()
-                
+                val activities = mutableListOf<ActivityItem>()
                 for (data in snapshot.children) {
-                    val addr = data.getValue(Address::class.java) ?: continue
-                    addr.id = data.key
-                    val creatorId = addr.userId ?: ""
-                    if (creatorId.isNotEmpty()) {
-                        countsMap[creatorId] = (countsMap[creatorId] ?: 0) + 1
-                        if (isAdmin || creatorId == currentUid) userAddressesFull.add(addr)
+                    val address = data.getValue(Address::class.java) ?: continue
+                    address.id = data.key
+                    val uid = address.userId.orEmpty()
+                    if (uid.isNotEmpty()) {
+                        counts[uid] = (counts[uid] ?: 0) + 1
+                        if (uid == currentUid) {
+                            userAddressesFull.add(address)
+                            val place = listOfNotNull(address.city, address.street, address.house?.let { "д. $it" })
+                                .filter { it.isNotBlank() }.joinToString(", ")
+                            activities.add(ActivityItem(ActivityType.ADDRESS, getString(R.string.profile_activity_address, place), 0L))
+                        }
                     }
                 }
-                
-                val sortedRanks = countsMap.mapNotNull { (uid, count) ->
-                    if (adminUsersMap[uid] == true) {
-                        null
-                    } else {
-                        UserRank(uid, userNamesMap[uid] ?: "Аноним", count)
-                    }
+                currentAddressCount = counts[currentUid] ?: 0
+                val sorted = counts.mapNotNull { (uid, count) ->
+                    if (adminUsersMap[uid] == true) null else UserRank(uid, userNamesMap[uid] ?: getString(R.string.anonymous), count)
                 }.sortedByDescending { it.addressCount }
-                
-                UserRank.top3UserIds = sortedRanks.take(3).map { it.userId }
-                
-                // Обновляем имя текущего пользователя с учетом рейтинга
+                UserRank.top3UserIds = sorted.take(3).map { it.userId }
                 updateUserNameDisplay(userNamesMap[currentUid])
-                
                 userAddressesFull.reverse()
                 updateVisibleAddresses()
-                rankingAdapter.updateList(sortedRanks.take(10))
-                loadComments(countsMap[currentUid] ?: 0)
+                rankingAdapter.updateList(sorted.take(10))
+                loadEntrancesAndComments(activities)
             }
             override fun onCancelled(error: DatabaseError) {}
         })
     }
 
-    private fun updateVisibleAddresses() {
-        val visibleList = userAddressesFull.take(addressesLimit)
-        addressAdapter.updateList(visibleList)
-        btnLoadMoreAddresses.isVisible = userAddressesFull.size > addressesLimit
+    private fun loadEntrancesAndComments(activities: MutableList<ActivityItem>) {
+        database.getReference("entrances").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                currentEntranceCount = 0
+                for (addressNode in snapshot.children) {
+                    for (entranceNode in addressNode.children) {
+                        val entrance = entranceNode.getValue(Entrance::class.java) ?: continue
+                        if (entrance.lastEditorId == currentUid) {
+                            currentEntranceCount++
+                            val address = findAddress(addressNode.key)
+                            val city = address?.city.orEmpty()
+                            val street = address?.street.orEmpty()
+                            val house = address?.house?.let { "д. $it" }.orEmpty()
+                            val place = listOf(city, street, house).filter { it.isNotBlank() }.joinToString(", ")
+                            val detail = if (place.isBlank()) entrance.number else "${entrance.number}, $place"
+                            activities.add(ActivityItem(ActivityType.ENTRANCE, getString(R.string.profile_activity_entrance, detail), entrance.lastEditTimestamp))
+                        }
+                    }
+                }
+                loadCommentsAndRender(activities)
+            }
+            override fun onCancelled(error: DatabaseError) { loadCommentsAndRender(activities) }
+        })
     }
 
-    private fun loadComments(addrCount: Int) {
+    private fun findAddress(id: String?): Address? = userAddressesFull.firstOrNull { it.id == id }
+
+    private fun loadCommentsAndRender(activities: MutableList<ActivityItem>) {
         database.getReference("comments").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 userCommentsFull.clear()
-                var userCommCount = 0
-                for (addrNode in snapshot.children) {
-                    for (commentNode in addrNode.children) {
+                currentCommentCount = 0
+                for (addressNode in snapshot.children) {
+                    for (commentNode in addressNode.children) {
                         val comment = commentNode.getValue(Comment::class.java) ?: continue
-                        comment.id = "${addrNode.key}/${commentNode.key}"
-                        if (comment.authorId == currentUid) userCommCount++
-                        if (isAdmin || comment.authorId == currentUid) userCommentsFull.add(comment)
+                        comment.id = "${addressNode.key}/${commentNode.key}"
+                        if (comment.authorId == currentUid) {
+                            currentCommentCount++
+                            val text = comment.text.orEmpty().replace('\n', ' ').take(90)
+                            activities.add(ActivityItem(ActivityType.COMMENT, getString(R.string.profile_activity_comment, text), comment.timestamp))
+                            userCommentsFull.add(comment)
+                        } else if (isAdmin) {
+                            userCommentsFull.add(comment)
+                        }
                     }
                 }
                 userCommentsFull.sortByDescending { it.timestamp }
                 updateVisibleComments()
-
-                val rankRes = when {
-                    addrCount > 50 -> R.string.rank_legend
-                    addrCount > 20 -> R.string.rank_master
-                    addrCount > 10 -> R.string.rank_activist
-                    addrCount > 5 -> R.string.rank_advanced
-                    else -> R.string.rank_newbie
-                }
-                tvUserRating.text = getString(R.string.rank_label, getString(rankRes))
-                tvAddressesCount.text = addrCount.toString()
-                tvCommentsCount.text = userCommCount.toString()
+                renderContribution()
+                renderRecentActivity(activities)
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                renderContribution()
+                renderRecentActivity(activities)
+            }
         })
     }
-    
+
+    private fun renderContribution() {
+        val points = currentAddressCount + currentEntranceCount
+        tvUserRating.text = getString(R.string.rank_label, ContributionRank.title(this, points))
+        tvRankProgress.text = ContributionRank.progress(this, points)
+        tvAddressesCount.text = currentAddressCount.toString()
+        tvCommentsCount.text = currentCommentCount.toString()
+        tvProfileEntranceCount.text = getString(R.string.profile_activity_entrances_label, currentEntranceCount)
+        tvContributionSummary.text = getString(R.string.profile_contribution_summary,
+            currentAddressCount, currentEntranceCount, currentCommentCount)
+    }
+
+    private fun renderRecentActivity(activities: List<ActivityItem>) {
+        val entries = activities.sortedByDescending { it.timestamp }.take(15)
+        recentActivityAdapter.updateList(entries)
+    }
+
+    private fun updateVisibleAddresses() {
+        addressAdapter.updateList(userAddressesFull.take(addressesLimit))
+        btnLoadMoreAddresses.isVisible = userAddressesFull.size > addressesLimit
+    }
+
     private fun updateVisibleComments() {
-        val visibleList = userCommentsFull.take(commentsLimit)
-        commentAdapter.updateList(visibleList)
+        commentAdapter.updateList(userCommentsFull.take(commentsLimit))
         btnLoadMoreComments.isVisible = userCommentsFull.size > commentsLimit
     }
 
-    private fun showLogoutDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Выход")
-            .setMessage("Вы действительно хотите выйти из профиля?")
-            .setPositiveButton("Да") { _, _ ->
-                auth.signOut()
-                val intent = Intent(this, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
+    private fun showCityPicker() {
+        CityManager.loadCitiesFromFirebase { cities ->
+            runOnUiThread {
+                val options = (cities + CityManager.ALL_CITIES).distinct()
+                val dialog = AlertDialog.Builder(this).setTitle(R.string.choose_city).create()
+                val list = RecyclerView(this).apply {
+                    layoutManager = LinearLayoutManager(this@ProfileActivity)
+                    adapter = CityPickerAdapter(options, selectedCity) { city ->
+                        CityManager.setSelectedCity(this@ProfileActivity, city)
+                        selectedCity = city
+                        tvProfileCity.text = getString(R.string.profile_city_format, city)
+                        dialog.dismiss()
+                    }
+                }
+                dialog.setView(list)
+                dialog.show()
             }
-            .setNegativeButton("Нет", null)
-            .show()
+        }
+    }
+
+    private fun showLogoutDialog() {
+        AlertDialog.Builder(this).setTitle(R.string.logout)
+            .setMessage(R.string.profile_logout_confirm)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                auth.signOut()
+                startActivity(Intent(this, LoginActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                })
+                finish()
+            }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun showChangeNameDialog() {
-        val editText = EditText(this).apply { 
-            val cleanName = tvUserName.text.toString()
-                .replace(" 👑", "").replace(" 🥈", "").replace(" 🥉", "")
-            setText(cleanName)
+        val editText = EditText(this).apply {
+            setText(tvUserName.text.toString().replace(" 👑", "").replace(" 🥈", "").replace(" 🥉", ""))
         }
         val container = FrameLayout(this).apply {
-            val p = (24 * resources.displayMetrics.density).toInt()
-            setPadding(p, p/4, p, 0)
+            val padding = (24 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 4, padding, 0)
             addView(editText)
         }
-        AlertDialog.Builder(this).setTitle("Ваше имя").setView(container)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val newName = editText.text.toString().trim()
-                if (newName.isNotEmpty()) {
-                    database.getReference("users").child(currentUid).child("name").setValue(newName)
+        AlertDialog.Builder(this).setTitle(R.string.change_name_title)
+            .setView(container)
+            .setPositiveButton(R.string.save) { _, _ ->
+                editText.text.toString().trim().takeIf { it.isNotEmpty() }?.let {
+                    database.getReference("users").child(currentUid).child("name").setValue(it)
                 }
-            }.setNegativeButton("Отмена", null).show()
+            }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun confirmDeleteAddress(address: Address) {
         AlertDialog.Builder(this).setTitle(android.R.string.dialog_alert_title)
             .setMessage(getString(R.string.confirm_delete_address, address.street))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                database.getReference("addresses").child(address.id!!).removeValue()
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            .setPositiveButton(android.R.string.ok) { _, _ -> address.id?.let { database.getReference("addresses").child(it).removeValue() } }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun confirmDeleteComment(comment: Comment) {
         AlertDialog.Builder(this).setTitle(android.R.string.dialog_alert_title).setMessage(R.string.confirm_delete_comment)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                database.getReference("comments").child(comment.id).removeValue()
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            .setPositiveButton(android.R.string.ok) { _, _ -> database.getReference("comments").child(comment.id).removeValue() }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun showEditCommentDialog(comment: Comment) {
-        val et = EditText(this).apply { setText(comment.text) }
-        AlertDialog.Builder(this).setTitle(R.string.edit_comment).setView(et)
+        val input = EditText(this).apply { setText(comment.text) }
+        AlertDialog.Builder(this).setTitle(R.string.edit_comment).setView(input)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                database.getReference("comments").child(comment.id).child("text").setValue(et.text.toString())
+                database.getReference("comments").child(comment.id).child("text").setValue(input.text.toString())
             }.setNegativeButton(android.R.string.cancel, null).show()
     }
 }

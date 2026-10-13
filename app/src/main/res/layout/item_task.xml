@@ -16,7 +16,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Type and Date -->
+        <!-- Work type and appointment time -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -65,6 +65,20 @@
                 android:textStyle="bold"
                 android:textColor="?android:attr/textColorPrimary" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvTaskCity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="4dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSecondaryContainer"
+            android:background="@drawable/bg_task_city"
+            android:visibility="gone" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardTaskPhysicalAddress"
@@ -174,28 +188,22 @@
                 app:cornerRadius="18dp" />
         </LinearLayout>
 
-        <!-- Account, Tariff, Technology -->
-        <LinearLayout
+        <!-- Account and tariff/technology are separated to prevent narrow-row wrapping. -->
+        <TextView
+            android:id="@+id/tvTaskAccount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="4dp"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary" />
 
-            <TextView
-                android:id="@+id/tvTaskAccount"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
-
-            <TextView
-                android:id="@+id/tvTaskTariffTech"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tvTaskTariffTech"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary" />
 
         <!-- History Button -->
         <com.google.android.material.button.MaterialButton

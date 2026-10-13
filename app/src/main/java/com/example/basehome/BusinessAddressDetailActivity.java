@@ -51,6 +51,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
     
     private BusinessAddress currentBusinessAddress;
     private ImageButton btnDelete, btnEdit, btnAddComment;
+    private Button btnViewPdf;
     private boolean isAdmin = false;
     private String addressId;
     private String replyingToCommentId = null;
@@ -82,6 +83,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         btnDelete = findViewById(R.id.btnDeleteBusinessAddress);
         btnEdit = findViewById(R.id.btnEditBusinessAddress);
         btnAddComment = findViewById(R.id.btnAddComment);
+        btnViewPdf = findViewById(R.id.btnViewPdf);
         
         rvSockets = findViewById(R.id.rvSockets);
         rvReserves = findViewById(R.id.rvReserves);
@@ -175,6 +177,20 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                             currentBusinessAddress.getUserId(), 
                             currentBusinessAddress.getUserName());
                     tvBusAddedBy.setText(TextUtils.concat("Создал: ", nameWithRank));
+                    
+                    if (currentBusinessAddress.getPdfUrl() != null && !currentBusinessAddress.getPdfUrl().trim().isEmpty()) {
+                        btnViewPdf.setVisibility(View.VISIBLE);
+                        btnViewPdf.setOnClickListener(v -> {
+                            try {
+                                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(currentBusinessAddress.getPdfUrl()));
+                                startActivity(intent);
+                            } catch (Exception e) {
+                                Toast.makeText(BusinessAddressDetailActivity.this, "Не удалось открыть PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } else {
+                        btnViewPdf.setVisibility(View.GONE);
+                    }
                     
                     updateActionButtonsVisibility();
                 }
@@ -381,6 +397,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         EditText etStreet = dialogView.findViewById(R.id.etBusinessStreet);
         EditText etHouse = dialogView.findViewById(R.id.etBusinessHouse);
         EditText etCenter = dialogView.findViewById(R.id.etCenterName);
+        EditText etPdfUrl = dialogView.findViewById(R.id.etPdfUrl);
         Spinner spinnerCity = dialogView.findViewById(R.id.spinnerBusinessCity);
         Button btnSave = dialogView.findViewById(R.id.btnSaveBusiness);
 
@@ -397,6 +414,9 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         etStreet.setText(currentBusinessAddress.getStreet());
         etHouse.setText(currentBusinessAddress.getHouse());
         etCenter.setText(currentBusinessAddress.getCenterName());
+        if (etPdfUrl != null && currentBusinessAddress.getPdfUrl() != null) {
+            etPdfUrl.setText(currentBusinessAddress.getPdfUrl());
+        }
         
         btnSave.setVisibility(View.GONE);
 
@@ -407,6 +427,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                     String streetInput = etStreet.getText().toString().trim();
                     String house = etHouse.getText().toString().trim();
                     String centerInput = etCenter.getText().toString().trim();
+                    String pdfUrl = etPdfUrl != null ? etPdfUrl.getText().toString().trim() : "";
                     String city = spinnerCity.getSelectedItem().toString();
 
                     if (!streetInput.isEmpty() && !house.isEmpty() && !centerInput.isEmpty()) {
@@ -418,6 +439,7 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                         updates.put("house", house);
                         updates.put("centerName", center);
                         updates.put("city", city);
+                        updates.put("pdfUrl", pdfUrl);
 
                         databaseReference.updateChildren(updates)
                                 .addOnSuccessListener(aVoid -> Toast.makeText(BusinessAddressDetailActivity.this, "Обновлено", Toast.LENGTH_SHORT).show());

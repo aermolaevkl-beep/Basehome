@@ -30,7 +30,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     private final OnCreateAddressListener onCreateAddress;
 
     public interface OnCreateAddressListener {
-        void onCreateAddress(String streetHouse);
+        void onCreateAddress(String streetHouse, String city);
     }
 
     public static class PhysicalAddressContext {
@@ -83,9 +83,18 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         holder.tvDateTime.setText(item.getDateTime());
         holder.tvAddress.setText(item.getAddress());
         holder.tvClientName.setText(item.getClientName());
+        if (item.getCity() == null || item.getCity().trim().isEmpty()) {
+            holder.tvTaskCity.setVisibility(View.GONE);
+        } else {
+            holder.tvTaskCity.setText(context.getString(R.string.task_city_badge, item.getCity()));
+            holder.tvTaskCity.setVisibility(View.VISIBLE);
+        }
 
-        String physicalAddressKey = GoogleAddress.parseHouseKey(item.getAddress());
-        PhysicalAddressContext physicalContext = physicalAddressContextMap.get(physicalAddressKey);
+        String physicalAddressKey = GoogleAddress.parseStreetHouseKey(item.getAddress());
+        PhysicalAddressContext matchedContext = physicalAddressContextMap.get(
+                TaskItem.cityAddressKey(item.getCity(), physicalAddressKey));
+        if (matchedContext == null) matchedContext = physicalAddressContextMap.get(physicalAddressKey);
+        final PhysicalAddressContext physicalContext = matchedContext;
         holder.cardPhysicalAddress.setVisibility(View.VISIBLE);
         if (physicalContext == null) {
             int accent = androidx.core.content.ContextCompat.getColor(context, R.color.task_address_missing_accent);
@@ -102,7 +111,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             String streetHouse = parsedAddress.getStreetHouse();
             holder.cardPhysicalAddress.setOnClickListener(v -> {
                 if (onCreateAddress != null && !streetHouse.trim().isEmpty()) {
-                    onCreateAddress.onCreateAddress(streetHouse);
+                    onCreateAddress.onCreateAddress(streetHouse, item.getCity());
                 } else {
                     Toast.makeText(context, R.string.task_physical_address_parse_error, Toast.LENGTH_SHORT).show();
                 }
@@ -150,7 +159,9 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             }
         });
 
-        holder.tvTariffTech.setText(item.getTariff() + " | " + item.getTechnology());
+        String tariffAndLocation = context.getString(
+                R.string.task_tariff_technology, item.getTariff(), item.getTechnology());
+        holder.tvTariffTech.setText(tariffAndLocation);
 
         // Phone call and copy
         String phone = item.getClientPhone();
@@ -178,11 +189,16 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         String fullKey = GoogleAddress.parseFullAddressKey(rawAddress);
         String houseKey = GoogleAddress.parseHouseKey(rawAddress);
 
-        ArrayList<String> pastVisits = addressHistoryMap.get(fullKey);
+        String taskCityKey = TaskItem.normalizeExportCity(item.getCity());
+        ArrayList<String> pastVisits = taskCityKey.isEmpty()
+                ? addressHistoryMap.get(fullKey)
+                : addressHistoryMap.get(TaskItem.cityAddressKey(taskCityKey, fullKey));
         boolean isApartmentSpecific = pastVisits != null && !pastVisits.isEmpty();
 
         if (!isApartmentSpecific && houseKey != null && !houseKey.isEmpty()) {
-            pastVisits = addressHistoryMap.get(houseKey);
+            pastVisits = taskCityKey.isEmpty()
+                    ? addressHistoryMap.get(houseKey)
+                    : addressHistoryMap.get(TaskItem.cityAddressKey(taskCityKey, houseKey));
         }
 
         if (pastVisits != null && !pastVisits.isEmpty()) {
@@ -223,7 +239,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     }
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
-        TextView tvType, tvDateTime, tvAddress, tvClientName, tvAccount, tvTariffTech;
+        TextView tvType, tvDateTime, tvAddress, tvClientName, tvAccount, tvTariffTech, tvTaskCity;
         TextView tvPhysicalAddressTitle, tvPhysicalAddressDetails, tvPhysicalAddressStatus;
         com.google.android.material.card.MaterialCardView cardPhysicalAddress;
         android.widget.ImageView ivPhysicalAddressStatus;
@@ -235,6 +251,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             tvDateTime = itemView.findViewById(R.id.tvTaskDateTime);
             tvAddress = itemView.findViewById(R.id.tvTaskAddress);
             tvClientName = itemView.findViewById(R.id.tvTaskClientName);
+            tvTaskCity = itemView.findViewById(R.id.tvTaskCity);
             cardPhysicalAddress = itemView.findViewById(R.id.cardTaskPhysicalAddress);
             tvPhysicalAddressTitle = itemView.findViewById(R.id.tvTaskPhysicalAddressTitle);
             tvPhysicalAddressDetails = itemView.findViewById(R.id.tvTaskPhysicalAddressDetails);

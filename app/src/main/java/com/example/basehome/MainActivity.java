@@ -11,10 +11,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -46,10 +42,8 @@ public class MainActivity extends AppCompatActivity {
     private View vConnectionIndicator;
     private TextView tvConnectionStatus;
     private TextView tvSelectedCityName;
-    private View cardCitySelector;
     private View btnDatabase;
-    private final List<String> availableCities = new ArrayList<>();
-    private String activeCity = CityManager.ALL_CITIES;
+    private String activeCity = "";
     private DatabaseReference userStatusRef;
     private DatabaseReference connectedRef;
     private ValueEventListener connectionListener;
@@ -77,11 +71,7 @@ public class MainActivity extends AppCompatActivity {
         vConnectionIndicator = findViewById(R.id.vConnectionIndicator);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         tvSelectedCityName = findViewById(R.id.tvSelectedCityName);
-        cardCitySelector = findViewById(R.id.cardCitySelector);
         btnDatabase = findViewById(R.id.btnDatabase);
-        if (cardCitySelector != null) {
-            cardCitySelector.setOnClickListener(v -> showCityPickerDialog());
-        }
         
         initIndicatorBackground();
         setupClickListeners();
@@ -141,54 +131,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupCitySelector() {
         CityManager.syncCityFromFirebase(this, currentCity -> {
-            this.activeCity = (currentCity != null) ? currentCity : CityManager.ALL_CITIES;
+            String assignedCity = TaskItem.normalizeExportCity(currentCity);
+            activeCity = assignedCity.isEmpty() || CityManager.ALL_CITIES.equalsIgnoreCase(assignedCity)
+                    ? "" : assignedCity;
             updateCityCardText();
-
-            CityManager.loadCitiesFromFirebase(cities -> {
-                if (isFinishing()) return;
-                availableCities.clear();
-                availableCities.add(CityManager.ALL_CITIES);
-                for (String c : cities) {
-                    if (!availableCities.contains(c)) {
-                        availableCities.add(c);
-                    }
-                }
-            });
         });
     }
 
     private void updateCityCardText() {
         if (tvSelectedCityName != null) {
-            boolean isAll = CityManager.ALL_CITIES.equalsIgnoreCase(activeCity);
-            tvSelectedCityName.setText(isAll ? "🌐 " + activeCity : "📍 " + activeCity);
+            tvSelectedCityName.setText(activeCity.isEmpty()
+                    ? getString(R.string.city_not_assigned)
+                    : "📍 " + activeCity);
         }
         if (btnDatabase != null) {
             btnDatabase.setVisibility(View.VISIBLE);
         }
-    }
-
-    private void showCityPickerDialog() {
-        if (availableCities.isEmpty()) {
-            availableCities.add(CityManager.ALL_CITIES);
-            availableCities.add("Могилев");
-            availableCities.add("Бобруйск");
-        }
-
-        BottomSheetDialog dialog = new BottomSheetDialog(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_city_picker, null);
-        RecyclerView rvCities = dialogView.findViewById(R.id.rvCitiesPicker);
-
-        rvCities.setLayoutManager(new LinearLayoutManager(this));
-        CityPickerAdapter adapter = new CityPickerAdapter(availableCities, activeCity, city -> {
-            activeCity = city;
-            CityManager.setSelectedCity(MainActivity.this, city);
-            updateCityCardText();
-            dialog.dismiss();
-        });
-
-        rvCities.setAdapter(adapter);
-        dialog.setContentView(dialogView);
-        dialog.show();
     }
 
     private void goToLogin() {

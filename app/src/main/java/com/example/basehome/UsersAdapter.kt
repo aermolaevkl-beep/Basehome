@@ -22,6 +22,8 @@ class UsersAdapter(
         val tvEmail: TextView = view.findViewById(R.id.tvUserDetailEmail)
         val tvAddresses: TextView = view.findViewById(R.id.tvUserDetailAddressCount)
         val tvComments: TextView = view.findViewById(R.id.tvUserDetailCommentCount)
+        val tvCity: TextView = view.findViewById(R.id.tvUserDetailCity)
+        val tvContribution: TextView = view.findViewById(R.id.tvUserDetailContribution)
         val tvAppVersion: TextView = view.findViewById(R.id.tvUserDetailAppVersion)
         val vStatus: View = view.findViewById(R.id.vOnlineStatus)
         val tvLastSeen: TextView = view.findViewById(R.id.tvLastSeen)
@@ -53,6 +55,18 @@ class UsersAdapter(
         holder.tvEmail.text = user.email
         holder.tvAddresses.text = "Адресов: ${user.addressCount}"
         holder.tvComments.text = "Комментариев: ${user.commentCount}"
+        holder.tvCity.text = holder.itemView.context.getString(
+            R.string.user_city_format,
+            user.selectedCity.ifBlank { holder.itemView.context.getString(R.string.city_not_assigned) }
+        )
+        val points = user.addressCount + user.entranceCount
+        holder.tvContribution.text = holder.itemView.context.getString(
+            R.string.user_contribution_format,
+            points,
+            user.addressCount,
+            user.entranceCount,
+            user.commentCount
+        ) + " · " + ContributionRank.title(holder.itemView.context, points)
         holder.tvAppVersion.text = if (user.appVersion.isBlank()) {
             holder.itemView.context.getString(R.string.user_app_version_unknown)
         } else {

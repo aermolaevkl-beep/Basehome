@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.*
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
@@ -15,12 +16,22 @@ import com.google.firebase.database.*
 
 class AdminActivity : AppCompatActivity() {
 
-    private lateinit var tvStatUsers: TextView
-    private lateinit var tvStatAddresses: TextView
-    private lateinit var tvStatComments: TextView
-    private lateinit var etNewCity: EditText
-    private lateinit var btnAddCity: Button
-    private lateinit var rvAdminCities: RecyclerView
+    private lateinit var tvAdminStatsByCity: LinearLayout
+    private lateinit var overviewUsersValue: TextView
+    private lateinit var overviewAddressesValue: TextView
+    private lateinit var overviewCommentsValue: TextView
+    private lateinit var tvPhysicalStatLabel: TextView
+    private lateinit var tvPhysicalStatValue: TextView
+    private lateinit var tvPhysicalStatDetail: TextView
+    private lateinit var tvBusinessStatLabel: TextView
+    private lateinit var tvBusinessStatValue: TextView
+    private lateinit var tvBusinessStatDetail: TextView
+    private lateinit var tvUsersStatLabel: TextView
+    private lateinit var tvUsersStatValue: TextView
+    private lateinit var tvUsersStatDetail: TextView
+    private val statsListeners = mutableListOf<Pair<DatabaseReference, ValueEventListener>>()
+    private var statsLoadFailed = false
+    private val registeredCities = mutableSetOf<String>()
     private lateinit var btnManageUsers: Button
     private lateinit var btnCreateAccount: Button
     private lateinit var btnModerateComments: Button
@@ -28,9 +39,6 @@ class AdminActivity : AppCompatActivity() {
     private lateinit var btnBackAdmin: ImageButton
 
     private lateinit var database: FirebaseDatabase
-    private lateinit var citiesAdapter: AdminCitiesAdapter
-    private val citiesList = mutableListOf<String>()
-    private val cityKeysMap = mutableMapOf<String, String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,12 +47,25 @@ class AdminActivity : AppCompatActivity() {
 
         database = FirebaseDatabase.getInstance()
 
-        tvStatUsers = findViewById(R.id.tvStatUsers)
-        tvStatAddresses = findViewById(R.id.tvStatAddresses)
-        tvStatComments = findViewById(R.id.tvStatComments)
-        etNewCity = findViewById(R.id.etNewCity)
-        btnAddCity = findViewById(R.id.btnAddCity)
-        rvAdminCities = findViewById(R.id.rvAdminCities)
+        tvAdminStatsByCity = findViewById(R.id.tvAdminStatsByCity)
+        overviewUsersValue = findViewById<View>(R.id.overviewUsersRow).findViewById(R.id.tvOverviewValue)
+        overviewAddressesValue = findViewById<View>(R.id.overviewAddressesRow).findViewById(R.id.tvOverviewValue)
+        overviewCommentsValue = findViewById<View>(R.id.overviewCommentsRow).findViewById(R.id.tvOverviewValue)
+        findViewById<View>(R.id.overviewUsersRow).findViewById<TextView>(R.id.tvOverviewLabel).setText(R.string.admin_overview_users)
+        findViewById<View>(R.id.overviewAddressesRow).findViewById<TextView>(R.id.tvOverviewLabel).setText(R.string.admin_overview_addresses)
+        findViewById<View>(R.id.overviewCommentsRow).findViewById<TextView>(R.id.tvOverviewLabel).setText(R.string.admin_overview_comments)
+        val physicalCard = findViewById<View>(R.id.statPhysical)
+        tvPhysicalStatLabel = physicalCard.findViewById(R.id.tvAdminStatLabel)
+        tvPhysicalStatValue = physicalCard.findViewById(R.id.tvAdminStatValue)
+        tvPhysicalStatDetail = physicalCard.findViewById(R.id.tvAdminStatDetail)
+        val businessCard = findViewById<View>(R.id.statBusiness)
+        tvBusinessStatLabel = businessCard.findViewById(R.id.tvAdminStatLabel)
+        tvBusinessStatValue = businessCard.findViewById(R.id.tvAdminStatValue)
+        tvBusinessStatDetail = businessCard.findViewById(R.id.tvAdminStatDetail)
+        val usersCard = findViewById<View>(R.id.statUsers)
+        tvUsersStatLabel = usersCard.findViewById(R.id.tvAdminStatLabel)
+        tvUsersStatValue = usersCard.findViewById(R.id.tvAdminStatValue)
+        tvUsersStatDetail = usersCard.findViewById(R.id.tvAdminStatDetail)
         btnManageUsers = findViewById(R.id.btnManageUsers)
         btnCreateAccount = findViewById(R.id.btnCreateAccount)
         btnModerateComments = findViewById(R.id.btnModerateComments)
@@ -55,12 +76,12 @@ class AdminActivity : AppCompatActivity() {
         btnAdminProfile.setOnClickListener { startActivity(Intent(this, ProfileActivity::class.java)) }
         btnManageUsers.setOnClickListener { startActivity(Intent(this, UsersActivity::class.java)) }
         btnCreateAccount.setOnClickListener { verifyAdminAndShowCreateAccountDialog() }
-        btnAddCity.setOnClickListener { addNewCity() }
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnManageCities).setOnClickListener {
+            startActivity(Intent(this, AdminCitiesActivity::class.java))
+        }
         btnModerateComments.setOnClickListener { showModerationDialog() }
 
-        setupCitiesAdapter()
         loadStats()
-        loadCities()
     }
 
     private fun verifyAdminAndShowCreateAccountDialog() {
@@ -94,17 +115,17 @@ class AdminActivity : AppCompatActivity() {
         val nameInput = EditText(this).apply {
             hint = getString(R.string.account_name_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            setSingleLine(true)
+            isSingleLine = true
         }
         val emailInput = EditText(this).apply {
             hint = getString(R.string.account_email_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            setSingleLine(true)
+            isSingleLine = true
         }
         val passwordInput = EditText(this).apply {
             hint = getString(R.string.account_password_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine(true)
+            isSingleLine = true
         }
         container.addView(nameInput)
         container.addView(emailInput)
@@ -174,7 +195,7 @@ class AdminActivity : AppCompatActivity() {
                     "email" to email,
                     "isAdmin" to false,
                     "isOnline" to false,
-                    "lastSeen" to 0L
+                    "lastSeen" to 0L,
                 )
                 FirebaseDatabase.getInstance(secondaryApp).getReference("users").child(uid).setValue(profile)
                     .addOnSuccessListener {
@@ -188,7 +209,7 @@ class AdminActivity : AppCompatActivity() {
                         Toast.makeText(
                             this,
                             getString(R.string.account_created_profile_error, error.localizedMessage ?: ""),
-                            Toast.LENGTH_LONG
+                            Toast.LENGTH_LONG,
                         ).show()
                     }
             }
@@ -198,121 +219,227 @@ class AdminActivity : AppCompatActivity() {
                 Toast.makeText(
                     this,
                     getString(R.string.account_creation_error, error.localizedMessage ?: ""),
-                    Toast.LENGTH_LONG
+                    Toast.LENGTH_LONG,
                 ).show()
             }
     }
 
-    private fun setupCitiesAdapter() {
-        citiesAdapter = AdminCitiesAdapter(citiesList) { cityToDelete ->
-            confirmDeleteCity(cityToDelete)
-        }
-        rvAdminCities.layoutManager = LinearLayoutManager(this)
-        rvAdminCities.adapter = citiesAdapter
-    }
-
     private fun loadStats() {
-        // Статистика пользователей
-        database.getReference("users").addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val total = snapshot.childrenCount
-                var online = 0
-                for (u in snapshot.children) {
-                    val isOnline = u.child("isOnline").getValue(Boolean::class.java) ?: false
-                    if (isOnline) online++
-                }
-                tvStatUsers.text = "Пользователи: всего $total (онлайн: $online)"
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+        val usersRef = database.getReference("users")
+        val addressesRef = database.getReference("addresses")
+        val businessRef = database.getReference("business_addresses")
+        val commentsRef = database.getReference("comments")
+        val entrancesRef = database.getReference("entrances")
 
-        // Статистика адресов (физических и юридических)
-        database.getReference("addresses").addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(physSnapshot: DataSnapshot) {
-                val physCount = physSnapshot.childrenCount
-                database.getReference("business_addresses").addValueEventListener(object : ValueEventListener {
-                    override fun onDataChange(bizSnapshot: DataSnapshot) {
-                        val bizCount = bizSnapshot.childrenCount
-                        tvStatAddresses.text = "Адреса: физ. $physCount, юр. $bizCount (всего: ${physCount + bizCount})"
-                    }
-                    override fun onCancelled(error: DatabaseError) {}
-                })
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
-
-        // Статистика комментариев
-        database.getReference("comments").addValueEventListener(object : ValueEventListener {
+        val citiesRef = database.getReference("cities")
+        val citiesListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                var totalComm = 0
-                for (addrNode in snapshot.children) {
-                    totalComm += addrNode.childrenCount.toInt()
-                }
-                tvStatComments.text = "Комментарии: $totalComm во всех разделах"
+                if (isFinishing || isDestroyed) return
+                registeredCities.clear()
+                snapshot.children.mapNotNullTo(registeredCities) { it.getValue(String::class.java)?.trim()?.takeIf(String::isNotEmpty) }
+                updateCityStats()
             }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+
+            override fun onCancelled(error: DatabaseError) {
+                statsLoadFailed = true
+                showStatsLoadError()
+            }
+        }
+        statsListeners.add(citiesRef to citiesListener)
+        citiesRef.addValueEventListener(citiesListener)
+
+        listOf(usersRef, addressesRef, businessRef, commentsRef, entrancesRef).forEach { ref ->
+            // These are the only nodes read by the overview; the Google/task database is never queried.
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (isFinishing || isDestroyed) return
+                    updateStats(ref.key.orEmpty(), snapshot)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    statsLoadFailed = true
+                    showStatsLoadError()
+                }
+            }
+            statsListeners.add(ref to listener)
+            ref.addValueEventListener(listener)
+        }
     }
 
-    private fun loadCities() {
-        database.getReference("cities").addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                citiesList.clear()
-                cityKeysMap.clear()
-                for (child in snapshot.children) {
-                    val city = child.getValue(String::class.java) ?: continue
-                    val key = child.key ?: continue
-                    citiesList.add(city)
-                    cityKeysMap[city] = key
-                }
-                citiesAdapter.updateList(citiesList)
+    private fun updateStats(path: String, snapshot: DataSnapshot) {
+        when (path) {
+            "users" -> {
+                val total = snapshot.childrenCount.toInt()
+                val online = snapshot.children.count { it.child("isOnline").getValue(Boolean::class.java) == true }
+                val admins = snapshot.children.count { it.child("isAdmin").getValue(Boolean::class.java) == true }
+                overviewUsersValue.text = getString(R.string.admin_overview_users_value, total, online, admins)
+                tvUsersStatLabel.text = getString(R.string.admin_stat_users)
+                tvUsersStatValue.text = total.toString()
+                tvUsersStatDetail.text = getString(R.string.admin_stat_users_detail, online, admins)
             }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+            "addresses" -> {
+                statsLoadFailed = false
+                val counts = countByCity(snapshot)
+                val total = snapshot.childrenCount.toInt()
+                physicalTotal = total
+                physicalAddressIds.clear()
+                snapshot.children.mapNotNullTo(physicalAddressIds) { it.key }
+                entranceTotal = physicalAddressIds.sumOf { entrancesByAddress[it] ?: 0 }
+                tvPhysicalStatLabel.text = getString(R.string.admin_stat_physical)
+                tvPhysicalStatValue.text = total.toString()
+                physicalCountsByCity.clear()
+                physicalCountsByCity.putAll(counts)
+                updateAddressSummary()
+                updateCityStats()
+                renderCommentSummary()
+            }
+            "business_addresses" -> {
+                val counts = countByCity(snapshot)
+                val total = snapshot.childrenCount.toInt()
+                businessTotal = total
+                businessAddressIds.clear()
+                snapshot.children.mapNotNullTo(businessAddressIds) { it.key }
+                businessCountsByCity.clear()
+                businessCountsByCity.putAll(counts)
+                updateBusinessDetails(snapshot, total)
+                updateAddressSummary()
+                updateCityStats()
+                renderCommentSummary()
+            }
+            "comments" -> updateCommentSummary(snapshot)
+            "entrances" -> updateEntranceSummary(snapshot)
+        }
     }
 
-    private fun addNewCity() {
-        val cityName = etNewCity.text.toString().trim()
-        if (cityName.isEmpty()) {
-            Toast.makeText(this, "Введите название города", Toast.LENGTH_SHORT).show()
+    private val physicalCountsByCity = linkedMapOf<String, Int>()
+    private val businessCountsByCity = linkedMapOf<String, Int>()
+    private var physicalTotal = 0
+    private var businessTotal = 0
+    private var physicalCommentTotal = 0
+    private var businessCommentTotal = 0
+    private var entranceTotal = 0
+    private val entrancesByAddress = mutableMapOf<String, Int>()
+
+    private fun countByCity(snapshot: DataSnapshot): Map<String, Int> {
+        val counts = linkedMapOf<String, Int>()
+        for (item in snapshot.children) {
+            val rawCity = item.child("city").getValue(String::class.java)?.trim().orEmpty()
+            val city = rawCity.ifEmpty { "Город не указан" }
+            counts[city] = (counts[city] ?: 0) + 1
+        }
+        return counts
+    }
+
+    private fun updateAddressSummary() {
+        val total = physicalTotal + businessTotal
+        overviewAddressesValue.text = getString(R.string.admin_overview_addresses_value, physicalTotal, businessTotal, total)
+    }
+
+    private fun updateBusinessDetails(snapshot: DataSnapshot, total: Int) {
+        businessTotal = total
+        currentBusinessRelatedCount = 0
+        for (businessAddress in snapshot.children) {
+            currentBusinessRelatedCount += businessAddress.child("sockets").childrenCount.toInt()
+            currentBusinessRelatedCount += businessAddress.child("reserves").childrenCount.toInt()
+        }
+        tvBusinessStatLabel.text = getString(R.string.admin_stat_business)
+        tvBusinessStatValue.text = total.toString()
+        tvBusinessStatDetail.text = getString(
+            R.string.admin_stat_business_detail,
+            currentBusinessRelatedCount,
+            businessCommentTotal,
+        )
+    }
+
+    private fun updateEntranceSummary(snapshot: DataSnapshot) {
+        entrancesByAddress.clear()
+        for (addressEntrances in snapshot.children) {
+            val addressId = addressEntrances.key ?: continue
+            entrancesByAddress[addressId] = addressEntrances.childrenCount.toInt()
+        }
+        entranceTotal = entrancesByAddress.values.sum()
+        updatePhysicalDetails()
+        renderCommentSummary()
+    }
+
+    private fun updateCommentSummary(snapshot: DataSnapshot) {
+        commentsByAddress.clear()
+        for (addressComments in snapshot.children) {
+            val addressId = addressComments.key ?: continue
+            commentsByAddress[addressId] = addressComments.children.count { commentNode ->
+                !commentNode.child("text").getValue(String::class.java).isNullOrBlank()
+            }
+        }
+        renderCommentSummary()
+        updatePhysicalDetails()
+    }
+
+    private val commentsByAddress = mutableMapOf<String, Int>()
+    private var commentTotal = 0
+
+    private fun renderCommentSummary() {
+        physicalCommentTotal = physicalAddressIds.sumOf { commentsByAddress[it] ?: 0 }
+        businessCommentTotal = businessAddressIds.sumOf { commentsByAddress[it] ?: 0 }
+        commentTotal = commentsByAddress.values.sum()
+        overviewCommentsValue.text = getString(R.string.admin_overview_comments_value, commentTotal, physicalCommentTotal, businessCommentTotal)
+        tvBusinessStatDetail.text = getString(
+            R.string.admin_stat_business_detail,
+            currentBusinessRelatedCount,
+            businessCommentTotal,
+        )
+    }
+
+    private var currentBusinessRelatedCount = 0
+    private val physicalAddressIds = mutableSetOf<String>()
+    private val businessAddressIds = mutableSetOf<String>()
+
+    private fun updatePhysicalDetails() {
+        tvPhysicalStatDetail.text = getString(R.string.admin_stat_physical_detail, entranceTotal, physicalCommentTotal)
+    }
+
+    private fun updateCityStats() {
+        val cityNames = (registeredCities.asSequence() + physicalCountsByCity.keys.asSequence() + businessCountsByCity.keys.asSequence()).distinct().sorted() .toList()
+        tvAdminStatsByCity.removeAllViews()
+        if (cityNames.isEmpty()) {
+            TextView(this).apply {
+                setText(R.string.admin_stats_city_empty)
+                setTextColor(resources.getColor(android.R.color.darker_gray, theme))
+                textSize = 14f
+            }.also(tvAdminStatsByCity::addView)
             return
         }
-
-        if (citiesList.contains(cityName)) {
-            Toast.makeText(this, "Город уже есть в списке", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val ref = database.getReference("cities").push()
-        ref.setValue(cityName).addOnSuccessListener {
-            etNewCity.text.clear()
-            Toast.makeText(this, "Город '$cityName' добавлен", Toast.LENGTH_SHORT).show()
-        }.addOnFailureListener { e ->
-            Toast.makeText(this, "Ошибка при добавлении: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        cityNames.forEachIndexed { index, city ->
+            val row = layoutInflater.inflate(R.layout.item_admin_city_stat, tvAdminStatsByCity, false)
+            row.findViewById<TextView>(R.id.tvCityStatName).text = city
+            row.findViewById<TextView>(R.id.tvCityStatPhysical).text = getString(R.string.admin_city_stat_physical, physicalCountsByCity[city] ?: 0)
+            row.findViewById<TextView>(R.id.tvCityStatBusiness).text = getString(R.string.admin_city_stat_business, businessCountsByCity[city] ?: 0)
+            tvAdminStatsByCity.addView(row)
+            if (index < cityNames.lastIndex) {
+                val divider = View(this).apply {
+                    setBackgroundColor(resources.getColor(android.R.color.darker_gray, theme))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * resources.displayMetrics.density).toInt())
+                }
+                tvAdminStatsByCity.addView(divider)
+            }
         }
     }
 
-    private fun confirmDeleteCity(cityName: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Удаление города")
-            .setMessage("Удалить город '$cityName' из справочника?")
-            .setPositiveButton("Удалить") { _, _ ->
-                val key = cityKeysMap[cityName]
-                if (key != null) {
-                    database.getReference("cities").child(key).removeValue().addOnSuccessListener {
-                        Toast.makeText(this, "Город удален", Toast.LENGTH_SHORT).show()
-                    }.addOnFailureListener { e ->
-                        Toast.makeText(this, "Ошибка при удалении: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
+    private fun showStatsLoadError() {
+        if (statsLoadFailed) {
+            tvAdminStatsByCity.removeAllViews()
+            TextView(this).apply {
+                setText(R.string.admin_stats_error)
+                setTextColor(resources.getColor(android.R.color.darker_gray, theme))
+                textSize = 14f
+            }.also(tvAdminStatsByCity::addView)
+        }
     }
 
     private fun showModerationDialog() {
-        database.getReference("comments").addListenerForSingleValueEvent(object : ValueEventListener {
+        database.getReference("comments").addListenerForSingleValueEvent(
+            object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 val allComments = mutableListOf<Pair<String, Comment>>() // Pair(fullPath, Comment)
                 for (addrNode in snapshot.children) {
                     val addrId = addrNode.key ?: continue
@@ -323,7 +450,7 @@ class AdminActivity : AppCompatActivity() {
                     }
                 }
 
-                allComments.sortByDescending { it.second.timestamp }
+                allComments.sortByDescending { (_, comment) -> comment.timestamp }
 
                 if (allComments.isEmpty()) {
                     Toast.makeText(this@AdminActivity, "Комментариев пока нет", Toast.LENGTH_SHORT).show()
@@ -335,19 +462,14 @@ class AdminActivity : AppCompatActivity() {
                 rv.layoutManager = LinearLayoutManager(this@AdminActivity)
 
                 var alertDialog: AlertDialog? = null
-                val commentsList = allComments.map { it.second }.toMutableList()
+                val commentsList = allComments.asSequence().map { (_, comment) -> comment }.toMutableList()
 
-                val adapter = CommentAdapter(
-                    commentsList,
-                    isAdmin = true,
-                    onReactionClick = { _, _ -> },
-                    onReplyClick = { _ -> },
-                    onDeleteClick = { comment ->
+                val deleteComment: (Comment) -> Unit = { comment ->
                         AlertDialog.Builder(this@AdminActivity)
                             .setTitle("Удаление комментария")
                             .setMessage("Удалить комментарий пользователя ${comment.authorEmail}?")
                             .setPositiveButton("Да") { _, _ ->
-                                val path = allComments.find { it.second.id == comment.id }?.first
+                                val path = allComments.find { (_, candidate) -> candidate.id == comment.id }?.first
                                 if (path != null) {
                                     val parts = path.split("/")
                                     if (parts.size == 2) {
@@ -359,8 +481,14 @@ class AdminActivity : AppCompatActivity() {
                             }
                             .setNegativeButton("Нет", null)
                             .show()
-                    },
-                    onEditClick = { _ -> }
+                }
+                val adapter = CommentAdapter(
+                    comments = commentsList,
+                    isAdmin = true,
+                    onReactionClick = { _, _ -> },
+                    onReplyClick = {},
+                    onDeleteClick = deleteComment,
+                    onEditClick = {},
                 )
 
                 rv.adapter = adapter
@@ -373,7 +501,16 @@ class AdminActivity : AppCompatActivity() {
                 alertDialog = builder.show()
             }
 
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@AdminActivity, error.message, Toast.LENGTH_LONG).show()
+            }
         })
+
+    }
+
+    override fun onDestroy() {
+        statsListeners.forEach { (ref, listener) -> ref.removeEventListener(listener) }
+        statsListeners.clear()
+        super.onDestroy()
     }
 }
