@@ -11,5 +11,6 @@ data class UserDetail(
     val lastSeen: Long = 0,
     val isAdmin: Boolean = false,
     val selectedCity: String = "",
-    val appVersion: String = ""
+    val appVersion: String = "",
+    val loginStreakCount: Int = 0
 )

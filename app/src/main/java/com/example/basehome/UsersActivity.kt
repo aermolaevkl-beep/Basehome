@@ -38,7 +38,9 @@ class UsersActivity : AppCompatActivity() {
                     lastSeen = u.child("lastSeen").getValue(Long::class.java) ?: 0L,
                     isAdmin = u.child("isAdmin").getValue(Boolean::class.java) ?: false,
                     selectedCity = u.child("selectedCity").getValue(String::class.java) ?: "",
-                    appVersion = u.child("appVersion").getValue(String::class.java) ?: ""
+                    appVersion = u.child("appVersion").getValue(String::class.java) ?: "",
+                    loginStreakCount = (u.child("loginStreakCount").getValue(Long::class.java) ?: 0L)
+                        .toInt().coerceAtLeast(0)
                 )
             }.sortedWith(compareByDescending<UserDetail> { it.isOnline }
                 .thenByDescending { it.addressCount + it.entranceCount })

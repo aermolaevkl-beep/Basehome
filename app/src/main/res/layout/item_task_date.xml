@@ -43,6 +43,20 @@
                 android:textColor="?android:attr/textColorPrimary" />
 
             <TextView
+                android:id="@+id/tvTaskTodayBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:text="@string/tasks_today_badge"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnPrimary"
+                android:background="?attr/colorPrimary"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/tvTaskDateCount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

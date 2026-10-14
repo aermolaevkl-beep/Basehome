@@ -71,7 +71,7 @@ class CommentAdapter(
         val uid = comment.authorId
         if (!uid.isNullOrEmpty()) {
             if (nameCache.containsKey(uid)) {
-                holder.tvAuthor.text = RankHelper.formatNameWithRank(uid, nameCache[uid])
+                RankHelper.bindName(holder.tvAuthor, uid, nameCache[uid])
             } else {
                 holder.tvAuthor.text = "" 
                 FirebaseDatabase.getInstance().getReference("users").child(uid).child("name")
@@ -83,7 +83,7 @@ class CommentAdapter(
                             
                             val updatedPos = holder.bindingAdapterPosition
                             if (updatedPos != RecyclerView.NO_POSITION && comments[updatedPos].authorId == uid) {
-                                holder.tvAuthor.text = RankHelper.formatNameWithRank(uid, finalName)
+                                RankHelper.bindName(holder.tvAuthor, uid, finalName)
                             }
                         }
                         override fun onCancelled(error: DatabaseError) {}

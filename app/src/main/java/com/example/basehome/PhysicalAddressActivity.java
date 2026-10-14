@@ -114,11 +114,11 @@ public class PhysicalAddressActivity extends AppCompatActivity {
                 .setTitle("Удаление")
                 .setMessage("Удалить адрес " + address.getStreet() + " со всеми данными?")
                 .setPositiveButton("Да", (dialog, which) -> {
-                    String id = address.getId();
-                    databaseReference.child(id).removeValue();
-                    FirebaseDatabase.getInstance().getReference("entrances").child(id).removeValue();
-                    FirebaseDatabase.getInstance().getReference("comments").child(id).removeValue();
-                    Toast.makeText(this, "Удалено", Toast.LENGTH_SHORT).show();
+                    AddressDeletionService.getInstance().softDelete(
+                            AddressDeletionService.PHYSICAL, address.getId(), FirebaseAuth.getInstance().getUid(),
+                            (success, error) -> Toast.makeText(this,
+                                    success ? "Перемещено в удалённые адреса" : "Не удалось удалить адрес",
+                                    Toast.LENGTH_SHORT).show());
                 })
                 .setNegativeButton("Нет", null)
                 .show();

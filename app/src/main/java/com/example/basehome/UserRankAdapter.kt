@@ -43,7 +43,7 @@ class UserRankAdapter(
         holder.tvPosition.text = (position + 1).toString()
         holder.tvCount.text = userRank.addressCount.toString()
 
-        holder.tvName.text = RankHelper.formatNameWithRank(userRank.userId, userRank.userName)
+        RankHelper.bindName(holder.tvName, userRank.userId, userRank.userName)
 
         when (position) {
             0 -> holder.tvPosition.setTextColor(Color.parseColor("#FFD700")) // Золото

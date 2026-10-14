@@ -110,10 +110,12 @@ public class BusinessAddressActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Удаление")
                 .setMessage("Удалить Юр. адрес " + address.getCenterName() + " со всеми данными?")
-                .setPositiveButton("Да", (dialog, which) -> {
-                    databaseReference.child(address.getId()).removeValue()
-                        .addOnSuccessListener(aVoid -> Toast.makeText(BusinessAddressActivity.this, "Удалено", Toast.LENGTH_SHORT).show());
-                })
+                .setPositiveButton("Да", (dialog, which) ->
+                        AddressDeletionService.getInstance().softDelete(
+                                AddressDeletionService.BUSINESS, address.getId(), FirebaseAuth.getInstance().getUid(),
+                                (success, error) -> Toast.makeText(BusinessAddressActivity.this,
+                                        success ? "Перемещено в удалённые адреса" : "Не удалось удалить адрес",
+                                        Toast.LENGTH_SHORT).show()))
                 .setNegativeButton("Нет", null)
                 .show();
     }

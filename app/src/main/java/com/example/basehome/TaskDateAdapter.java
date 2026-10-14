@@ -8,8 +8,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class TaskDateAdapter extends RecyclerView.Adapter<TaskDateAdapter.DateViewHolder> {
 
@@ -42,7 +45,10 @@ public class TaskDateAdapter extends RecyclerView.Adapter<TaskDateAdapter.DateVi
     @Override
     public void onBindViewHolder(@NonNull DateViewHolder holder, int position) {
         TaskDateGroup group = dateGroups.get(position);
-        holder.tvDateTitle.setText(group.getDate());
+        String groupDate = group.getDate();
+        boolean isToday = isToday(groupDate);
+        holder.tvDateTitle.setText(groupDate);
+        holder.tvTodayBadge.setVisibility(isToday ? View.VISIBLE : View.GONE);
         holder.tvDateCount.setText("Задач: " + group.getTaskCount());
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -51,18 +57,31 @@ public class TaskDateAdapter extends RecyclerView.Adapter<TaskDateAdapter.DateVi
         });
     }
 
+    private boolean isToday(String groupDate) {
+        if (groupDate == null) return false;
+        try {
+            Date date = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).parse(groupDate);
+            if (date == null) return false;
+            return new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(date)
+                    .equals(new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date()));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     @Override
     public int getItemCount() {
         return dateGroups.size();
     }
 
     static class DateViewHolder extends RecyclerView.ViewHolder {
-        TextView tvDateTitle, tvDateCount;
+        TextView tvDateTitle, tvDateCount, tvTodayBadge;
 
         public DateViewHolder(@NonNull View itemView) {
             super(itemView);
             tvDateTitle = itemView.findViewById(R.id.tvTaskDateTitle);
             tvDateCount = itemView.findViewById(R.id.tvTaskDateCount);
+            tvTodayBadge = itemView.findViewById(R.id.tvTaskTodayBadge);
         }
     }
 }

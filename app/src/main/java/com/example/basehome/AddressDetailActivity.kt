@@ -146,8 +146,7 @@ class AddressDetailActivity : AppCompatActivity() {
                         tvSidDetail.visibility = View.GONE
                     }
                     
-                    val nameWithRank = RankHelper.formatNameWithRank(address.userId, address.userName)
-                    tvAddedBy.text = TextUtils.concat("Создал: ", nameWithRank)
+                    RankHelper.bindName(tvAddedBy, address.userId, address.userName, "Создал: ")
                     
                     val currentUid = auth.currentUser?.uid
                     if (isAdmin || (currentUid != null && currentUid == address.userId)) {
@@ -318,10 +317,14 @@ class AddressDetailActivity : AppCompatActivity() {
 
     private fun confirmDeleteAddress() {
         AlertDialog.Builder(this).setTitle("Удаление").setMessage("Удалить этот адрес?").setPositiveButton("Удалить") { _, _ ->
-            databaseReference.child(addressId!!).removeValue()
-            FirebaseDatabase.getInstance().reference.child("entrances").child(addressId!!).removeValue()
-            FirebaseDatabase.getInstance().reference.child("comments").child(addressId!!).removeValue()
-            finish()
+            AddressDeletionService.getInstance().softDelete(
+                AddressDeletionService.PHYSICAL,
+                addressId!!,
+                auth.currentUser?.uid,
+            ) { success, _ ->
+                Toast.makeText(this, if (success) "Перемещено в удалённые адреса" else "Не удалось удалить адрес", Toast.LENGTH_SHORT).show()
+                if (success) finish()
+            }
         }.setNegativeButton("Отмена", null).show()
     }
 

@@ -174,10 +174,12 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
                     tvHouse.setText(getString(R.string.house_label, currentBusinessAddress.getHouse()));
                     tvCenter.setText(currentBusinessAddress.getCenterName());
                     
-                    CharSequence nameWithRank = RankHelper.INSTANCE.formatNameWithRank(
-                            currentBusinessAddress.getUserId(), 
-                            currentBusinessAddress.getUserName());
-                    tvBusAddedBy.setText(TextUtils.concat("Создал: ", nameWithRank));
+                    RankHelper.INSTANCE.bindName(
+                            tvBusAddedBy,
+                            currentBusinessAddress.getUserId(),
+                            currentBusinessAddress.getUserName(),
+                            "Создал: ",
+                            "");
                     
                     if (currentBusinessAddress.getPdfUrl() != null && !currentBusinessAddress.getPdfUrl().trim().isEmpty()) {
                         btnViewPdf.setVisibility(View.VISIBLE);
@@ -454,14 +456,13 @@ public class BusinessAddressDetailActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Удаление адреса")
                 .setMessage("Вы уверены, что хотите полностью удалить этот Юр. адрес?")
-                .setPositiveButton("Удалить", (dialog, which) -> 
-                    databaseReference.removeValue()
-                            .addOnSuccessListener(aVoid -> {
-                                FirebaseDatabase.getInstance().getReference("comments").child(addressId).removeValue();
-                                Toast.makeText(this, "Удалено", Toast.LENGTH_SHORT).show();
-                                finish();
-                            })
-                )
+                .setPositiveButton("Удалить", (dialog, which) ->
+                        AddressDeletionService.getInstance().softDelete(
+                                AddressDeletionService.BUSINESS, addressId, FirebaseAuth.getInstance().getUid(),
+                                (success, error) -> {
+                                    Toast.makeText(this, success ? "Перемещено в удалённые адреса" : "Не удалось удалить адрес", Toast.LENGTH_SHORT).show();
+                                    if (success) finish();
+                                }))
                 .setNegativeButton("Отмена", null)
                 .show();
     }

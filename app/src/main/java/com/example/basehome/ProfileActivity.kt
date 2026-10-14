@@ -20,6 +20,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var tvRankProgress: TextView
     private lateinit var tvProfileCity: TextView
     private lateinit var tvLoginStreak: TextView
+    private var currentLoginStreak: Int = 0
     private lateinit var tvProfileEntranceCount: TextView
     private lateinit var rvRecentActivity: RecyclerView
     private lateinit var tvAddressesCount: TextView
@@ -115,8 +116,9 @@ class ProfileActivity : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 isAdmin = snapshot.child("isAdmin").getValue(Boolean::class.java) ?: false
                 val loginStreak = snapshot.child("loginStreakCount").getValue(Long::class.java) ?: 0L
+                currentLoginStreak = loginStreak.toInt().coerceAtLeast(0)
                 tvLoginStreak.text = getString(R.string.profile_login_streak, loginStreak)
-                updateUserNameDisplay(snapshot.child("name").getValue(String::class.java))
+                updateUserNameDisplay(snapshot.child("name").getValue(String::class.java), currentLoginStreak)
                 selectedCity = snapshot.child("selectedCity").getValue(String::class.java)
                     ?.takeIf { it.isNotBlank() } ?: CityManager.ALL_CITIES
                 tvProfileCity.text = getString(R.string.profile_city_format, selectedCity)
@@ -128,9 +130,9 @@ class ProfileActivity : AppCompatActivity() {
         })
     }
 
-    private fun updateUserNameDisplay(name: String?) {
+    private fun updateUserNameDisplay(name: String?, streakCount: Int) {
         val baseName = name ?: auth.currentUser?.email?.substringBefore("@") ?: getString(R.string.user_default_name)
-        tvUserName.text = RankHelper.formatNameWithRank(currentUid, baseName)
+        RankHelper.bindName(tvUserName, currentUid, baseName, streakCount = streakCount)
     }
 
     private fun loadAllUserNames(onComplete: () -> Unit) {
@@ -218,7 +220,7 @@ class ProfileActivity : AppCompatActivity() {
                     if (adminUsersMap[uid] == true) null else UserRank(uid, userNamesMap[uid] ?: getString(R.string.anonymous), count)
                 }.sortedByDescending { it.addressCount }
                 UserRank.top3UserIds = sorted.take(3).map { it.userId }
-                updateUserNameDisplay(userNamesMap[currentUid])
+                updateUserNameDisplay(userNamesMap[currentUid], currentLoginStreak)
                 userAddressesFull.reverse()
                 updateVisibleAddresses()
                 rankingAdapter.updateList(sorted.take(10))
@@ -412,7 +414,21 @@ class ProfileActivity : AppCompatActivity() {
     private fun confirmDeleteAddress(address: Address) {
         AlertDialog.Builder(this).setTitle(android.R.string.dialog_alert_title)
             .setMessage(getString(R.string.confirm_delete_address, address.street))
-            .setPositiveButton(android.R.string.ok) { _, _ -> address.id?.let { database.getReference("addresses").child(it).removeValue() } }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                address.id?.let { id ->
+                    AddressDeletionService.getInstance().softDelete(
+                        AddressDeletionService.PHYSICAL,
+                        id,
+                        auth.currentUser?.uid,
+                    ) { success, _ ->
+                        Toast.makeText(
+                            this,
+                            if (success) "Перемещено в удалённые адреса" else "Не удалось удалить адрес",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
+            }
             .setNegativeButton(android.R.string.cancel, null).show()
     }
 

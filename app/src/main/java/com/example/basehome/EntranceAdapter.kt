@@ -70,8 +70,7 @@ class EntranceAdapter(
         val date = sdf.format(Date(entrance.lastEditTimestamp))
         
         // Добавляем значок ранга редактору
-        val nameWithRank = RankHelper.formatNameWithRank(entrance.lastEditorId, entrance.lastEditorName)
-        holder.tvLastEdit.text = android.text.TextUtils.concat("Изм: ", nameWithRank, " ($date)")
+        RankHelper.bindName(holder.tvLastEdit, entrance.lastEditorId, entrance.lastEditorName, "Изм: ", " ($date)")
 
         holder.btnEdit.setOnClickListener { onEditClick(entrance) }
     }

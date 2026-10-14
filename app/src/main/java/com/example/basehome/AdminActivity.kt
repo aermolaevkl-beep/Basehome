@@ -35,6 +35,7 @@ class AdminActivity : AppCompatActivity() {
     private lateinit var btnManageUsers: Button
     private lateinit var btnCreateAccount: Button
     private lateinit var btnModerateComments: Button
+    private lateinit var btnDeletedAddresses: Button
     private lateinit var btnAdminProfile: Button
     private lateinit var btnBackAdmin: ImageButton
 
@@ -69,6 +70,7 @@ class AdminActivity : AppCompatActivity() {
         btnManageUsers = findViewById(R.id.btnManageUsers)
         btnCreateAccount = findViewById(R.id.btnCreateAccount)
         btnModerateComments = findViewById(R.id.btnModerateComments)
+        btnDeletedAddresses = findViewById(R.id.btnDeletedAddresses)
         btnAdminProfile = findViewById(R.id.btnAdminProfile)
         btnBackAdmin = findViewById(R.id.btnBackAdmin)
 
@@ -80,6 +82,7 @@ class AdminActivity : AppCompatActivity() {
             startActivity(Intent(this, AdminCitiesActivity::class.java))
         }
         btnModerateComments.setOnClickListener { showModerationDialog() }
+        btnDeletedAddresses.setOnClickListener { startActivity(Intent(this, DeletedAddressesActivity::class.java)) }
 
         loadStats()
     }

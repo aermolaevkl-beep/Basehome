@@ -46,6 +46,9 @@
         <activity
             android:name=".AdminActivity"
             android:exported="false" />
+        <activity
+            android:name=".DeletedAddressesActivity"
+            android:exported="false" />
 
         <activity
             android:name=".TasksActivity"

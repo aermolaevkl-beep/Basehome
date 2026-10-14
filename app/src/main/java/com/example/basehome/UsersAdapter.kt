@@ -51,7 +51,7 @@ class UsersAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = users[position]
-        holder.tvName.text = RankHelper.formatNameWithRank(user.uid, user.name)
+        RankHelper.bindName(holder.tvName, user.uid, user.name, streakCount = user.loginStreakCount)
         holder.tvEmail.text = user.email
         holder.tvAddresses.text = "Адресов: ${user.addressCount}"
         holder.tvComments.text = "Комментариев: ${user.commentCount}"
